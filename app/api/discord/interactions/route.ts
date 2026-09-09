@@ -11,6 +11,7 @@ import {
 } from "@/lib/discord";
 // Ganti sesuai layer DB kamu (Prisma / Drizzle / Supabase / dll).
 import { prisma } from "@/lib/prisma";
+import { firstImageUrl, toPlainExcerpt } from "@/lib/md-extract";
 
 /**
  * ============================================================================
@@ -112,8 +113,9 @@ export async function POST(req: Request) {
             embed: announcementEmbed({
               id: announcement.id,
               title: announcement.title,
-              body: announcement.body,
+              body: toPlainExcerpt(announcement.body, 1500),
               authorName: invoker,
+              imageUrl: firstImageUrl(announcement.body),
             }),
           });
 
@@ -158,7 +160,8 @@ export async function POST(req: Request) {
               id: event.id,
               title: event.title,
               date: tanggalRaw,
-              description: deskripsi ?? undefined,
+              description: deskripsi ? toPlainExcerpt(deskripsi, 1500) : undefined,
+              imageUrl: deskripsi ? firstImageUrl(deskripsi) : undefined,
             }),
           });
 

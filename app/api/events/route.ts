@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiRole } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { sendDiscordWebhook, eventEmbed } from "@/lib/discord";
+import { firstImageUrl, toPlainExcerpt } from "@/lib/md-extract";
 
 export const runtime = "nodejs";
 
@@ -51,7 +52,12 @@ export async function POST(req: Request) {
       id: event.id,
       title: event.title,
       date: event.dateLabel,
-      description: event.description ?? undefined,
+      description: event.description
+        ? toPlainExcerpt(event.description, 1500)
+        : undefined,
+      imageUrl: event.description
+        ? firstImageUrl(event.description)
+        : undefined,
     }),
   });
 

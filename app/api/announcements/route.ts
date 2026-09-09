@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiRole } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { sendDiscordWebhook, announcementEmbed } from "@/lib/discord";
+import { firstImageUrl, toPlainExcerpt } from "@/lib/md-extract";
 
 export const runtime = "nodejs";
 
@@ -46,8 +47,9 @@ export async function POST(req: Request) {
     embed: announcementEmbed({
       id: announcement.id,
       title: announcement.title,
-      body: announcement.body,
+      body: toPlainExcerpt(announcement.body, 1500),
       authorName: announcement.authorName ?? undefined,
+      imageUrl: firstImageUrl(announcement.body),
     }),
   });
 

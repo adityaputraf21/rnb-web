@@ -166,12 +166,14 @@ export function forumThreadEmbed(t: {
   categoryName?: string;
   excerpt?: string;
   path?: string;
+  imageUrl?: string;
 }): DiscordEmbed {
   return {
     author: { name: "💬 Thread Forum Baru" },
     title: t.title,
     url: `${SITE_URL}${t.path ?? `/forum/${t.id}`}`,
-    description: t.excerpt,
+    description: t.excerpt || undefined,
+    image: t.imageUrl ? { url: t.imageUrl } : undefined,
     fields: [
       { name: "Penulis", value: t.authorName, inline: true },
       ...(t.categoryName
@@ -186,12 +188,14 @@ export function eventEmbed(e: {
   title: string;
   date: string;
   description?: string;
+  imageUrl?: string;
 }): DiscordEmbed {
   return {
     author: { name: "📅 Event Baru" },
     title: e.title,
     url: `${SITE_URL}/events/${e.id}`,
-    description: e.description,
+    description: e.description || undefined,
+    image: e.imageUrl ? { url: e.imageUrl } : undefined,
     fields: [{ name: "Tanggal", value: e.date, inline: true }],
   };
 }
@@ -217,12 +221,15 @@ export function announcementEmbed(a: {
   title: string;
   body: string;
   authorName?: string;
+  imageUrl?: string;
 }): DiscordEmbed {
+  const body = a.body.length > 4000 ? `${a.body.slice(0, 3997)}...` : a.body;
   return {
     author: { name: "📢 Pengumuman Baru" },
     title: a.title,
     url: `${SITE_URL}/announcements/${a.id}`,
-    description: a.body.length > 4000 ? `${a.body.slice(0, 3997)}...` : a.body,
+    description: body || undefined,
+    image: a.imageUrl ? { url: a.imageUrl } : undefined,
     fields: a.authorName
       ? [{ name: "Oleh", value: a.authorName, inline: true }]
       : undefined,

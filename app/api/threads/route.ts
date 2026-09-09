@@ -9,6 +9,7 @@ import { checkAchievements } from "@/lib/achievements";
 import { assertPostRate } from "@/lib/ratelimit";
 import { getSiteConfig } from "@/lib/site-config";
 import { sendDiscordWebhook, forumThreadEmbed } from "@/lib/discord";
+import { firstImageUrl, toPlainExcerpt } from "@/lib/md-extract";
 
 export const runtime = "nodejs";
 
@@ -80,7 +81,8 @@ export async function POST(req: Request) {
       title: thread.title,
       authorName: user.name ?? user.username,
       categoryName: category.name,
-      excerpt: body.trim().slice(0, 300),
+      excerpt: toPlainExcerpt(body),
+      imageUrl: firstImageUrl(body),
     }),
   });
 
