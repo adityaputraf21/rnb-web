@@ -8,6 +8,7 @@ import { UserMenu } from "@/components/user-menu";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { SearchBox } from "@/components/search-box";
+import { MobileNav } from "@/components/mobile-nav";
 
 const NAV = [
   { href: "/feed", label: "Feed" },
@@ -22,7 +23,8 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-      <div className="container flex h-14 items-center gap-4">
+      <div className="container flex h-14 items-center gap-2 sm:gap-4">
+        <MobileNav />
         <Link href="/" className="flex items-center gap-2 font-bold">
           <MessagesSquare className="h-5 w-5 text-primary" />
           {cfg.siteName}

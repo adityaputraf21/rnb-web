@@ -8,6 +8,7 @@ import { subscribe } from "@/lib/subscriptions";
 import { checkAchievements } from "@/lib/achievements";
 import { assertPostRate } from "@/lib/ratelimit";
 import { getSiteConfig } from "@/lib/site-config";
+import { assertClean } from "@/lib/automod";
 import { sendDiscordWebhook, forumThreadEmbed } from "@/lib/discord";
 import { firstImageUrl, toPlainExcerpt } from "@/lib/md-extract";
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "situs sedang maintenance" }, { status: 503 });
   }
 
-  const { categoryId, title, body } = await req.json().catch(() => ({}));
+  const { categoryId, title, body, poll } = await req.json().catch(() => ({}));
   if (
     typeof title !== "string" ||
     title.trim().length < 4 ||
@@ -41,6 +42,12 @@ export async function POST(req: Request) {
     );
   }
 
+  try {
+    await assertClean(`${title}\n${body}`);
+  } catch (res) {
+    return res as Response;
+  }
+
   const category = await prisma.category.findUnique({ where: { id: categoryId } });
   if (!category) {
     return NextResponse.json({ error: "kategori tidak ada" }, { status: 404 });
@@ -48,6 +55,11 @@ export async function POST(req: Request) {
   if (category.locked && user.role === "USER") {
     return NextResponse.json({ error: "kategori terkunci" }, { status: 403 });
   }
+
+  const pollOptions: string[] =
+    poll && Array.isArray(poll.options)
+      ? poll.options.map((o: unknown) => String(o).trim()).filter(Boolean).slice(0, 6)
+      : [];
 
   const thread = await prisma.thread.create({
     data: {
@@ -57,6 +69,22 @@ export async function POST(req: Request) {
       authorId: user.id,
       lastPostAt: new Date(),
       posts: { create: { body: body.trim(), authorId: user.id } },
+      ...(pollOptions.length >= 2 && poll?.question
+        ? {
+            poll: {
+              create: {
+                question: String(poll.question).slice(0, 200),
+                multiple: !!poll.multiple,
+                options: {
+                  create: pollOptions.map((t, i) => ({
+                    text: t.slice(0, 100),
+                    position: i,
+                  })),
+                },
+              },
+            },
+          }
+        : {}),
     },
   });
 

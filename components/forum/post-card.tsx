@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MoreVertical, Pencil, Trash2, Quote } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Quote, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { Markdown } from "@/components/markdown";
 import { MarkdownEditor } from "@/components/forum/markdown-editor";
 import { ReactionBar } from "@/components/forum/reaction-bar";
 import { ReportButton } from "@/components/forum/report-button";
-import { initials } from "@/lib/utils";
+import { initials, cn } from "@/lib/utils";
 import { tierClass, ROLE_LABEL, ROLE_BADGE } from "@/lib/tier-style";
 
 export function quotePost(author: string, body: string) {
@@ -51,6 +51,7 @@ export type PostView = {
   myReactions: string[];
   isOp: boolean;
   authorIsMe: boolean;
+  isBest: boolean;
 };
 
 export function PostCard({
@@ -58,16 +59,31 @@ export function PostCard({
   currentUserId,
   canModerate,
   timeAgoLabel,
+  threadId,
+  canMarkBest,
 }: {
   post: PostView;
   currentUserId: string | null;
   canModerate: boolean;
   timeAgoLabel: string;
+  threadId?: string;
+  canMarkBest?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(post.body);
   const [busy, setBusy] = React.useState(false);
+
+  async function toggleBest() {
+    if (!threadId) return;
+    const res = await fetch(`/api/threads/${threadId}/best`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id }),
+    });
+    if (!res.ok) return toast.error((await res.json()).error ?? "gagal");
+    router.refresh();
+  }
 
   async function saveEdit() {
     setBusy(true);
@@ -119,7 +135,18 @@ export function PostCard({
   const canDelete = post.authorIsMe || canModerate;
 
   return (
-    <div id={`post-${post.id}`} className="rounded-xl border p-4">
+    <div
+      id={`post-${post.id}`}
+      className={cn(
+        "rounded-xl border p-4",
+        post.isBest && "border-green-500/50 bg-green-500/5",
+      )}
+    >
+      {post.isBest && (
+        <p className="mb-2 flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+          <Check className="h-3.5 w-3.5" /> Jawaban terbaik
+        </p>
+      )}
       <div className="mb-3 flex items-start gap-3">
         <Link href={post.author ? `/u/${post.author.username}` : "#"}>
           <Avatar>
@@ -214,6 +241,20 @@ export function PostCard({
         />
         {currentUserId && (
           <div className="flex items-center gap-1">
+            {canMarkBest && !post.isOp && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-6 gap-1 px-2 text-xs",
+                  post.isBest ? "text-green-600" : "text-muted-foreground",
+                )}
+                onClick={toggleBest}
+              >
+                <Check className="h-3 w-3" />
+                {post.isBest ? "Batal jawaban terbaik" : "Jawaban terbaik"}
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

@@ -97,6 +97,29 @@ const commands = [
       },
     ],
   },
+  {
+    name: "leaderboard",
+    description: "Lihat 10 besar leaderboard komunitas",
+    type: 1,
+  },
+  {
+    name: "rank",
+    description: "Lihat peringkat & poin kamu (akun harus sudah login di web)",
+    type: 1,
+  },
+  {
+    name: "profile",
+    description: "Lihat profil singkat seorang member",
+    type: 1,
+    options: [
+      {
+        name: "username",
+        description: "Username di website",
+        type: 3,
+        required: true,
+      },
+    ],
+  },
 ];
 
 /* -------------------------------------------------------------------------- */

@@ -142,6 +142,25 @@ export function UsersManager({
                         <DropdownMenuSeparator />
                       </>
                     )}
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        const reason = prompt("Alasan peringatan:");
+                        if (!reason || reason.trim().length < 3) return;
+                        const res = await fetch("/api/admin/warnings", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ userId: r.id, reason }),
+                        });
+                        const d = await res.json();
+                        if (!res.ok) return toast.error(d.error ?? "gagal");
+                        toast.success(
+                          `Peringatan terkirim (${d.active} aktif)${d.escalation ?? ""}`,
+                        );
+                      }}
+                    >
+                      Beri peringatan…
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuLabel>Timeout</DropdownMenuLabel>
                     {[10, 60, 1440].map((m) => (
                       <DropdownMenuItem

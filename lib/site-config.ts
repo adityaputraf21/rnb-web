@@ -11,6 +11,7 @@ export type SiteConfig = {
   maintenanceMode: boolean;
   webhookUsername: string;
   webhookAvatar: string | null;
+  bannedWords: string | null;
 };
 
 const DEFAULTS: SiteConfig = {
@@ -23,6 +24,7 @@ const DEFAULTS: SiteConfig = {
   maintenanceMode: false,
   webhookUsername: "RnB",
   webhookAvatar: null,
+  bannedWords: null,
 };
 
 /**

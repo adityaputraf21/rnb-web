@@ -171,6 +171,76 @@ export async function POST(req: Request) {
           );
         }
 
+        /* ---------------- /leaderboard ---------------- */
+        case "leaderboard": {
+          const top = await prisma.user.findMany({
+            where: { bannedAt: null },
+            orderBy: { points: "desc" },
+            take: 10,
+            select: { username: true, name: true, points: true, tier: true },
+          });
+          const lines = top
+            .map(
+              (u, i) =>
+                `**${i + 1}.** ${u.name ?? u.username} — ${u.points} poin · ${u.tier}`,
+            )
+            .join("\n");
+          return reply(`🏆 **Leaderboard**\n${lines || "Belum ada data."}`, {
+            ephemeral: true,
+          });
+        }
+
+        /* ---------------- /rank ---------------- */
+        case "rank": {
+          if (!linked) {
+            return reply(
+              "Akunmu belum tertaut. Login dulu di website pakai Discord, lalu coba lagi.",
+              { ephemeral: true },
+            );
+          }
+          const u = await prisma.user.findUnique({
+            where: { id: linked.id },
+            select: { username: true, points: true, tier: true },
+          });
+          if (!u) return reply("User tidak ditemukan.", { ephemeral: true });
+          const higher = await prisma.user.count({
+            where: { points: { gt: u.points } },
+          });
+          return reply(
+            `📊 **@${u.username}** — peringkat **#${higher + 1}**, ${u.points} poin, tier **${u.tier}**`,
+            { ephemeral: true },
+          );
+        }
+
+        /* ---------------- /profile ---------------- */
+        case "profile": {
+          const uname = getOption(data, "username")?.trim().toLowerCase();
+          const u = uname
+            ? await prisma.user.findUnique({
+                where: { username: uname },
+                select: {
+                  username: true,
+                  name: true,
+                  points: true,
+                  tier: true,
+                  bio: true,
+                  _count: { select: { threads: true, posts: true, statuses: true } },
+                },
+              })
+            : null;
+          if (!u)
+            return reply(`User \`${uname}\` tidak ditemukan.`, { ephemeral: true });
+          const site =
+            process.env.NEXT_PUBLIC_SITE_URL ?? "https://rnb.web";
+          return reply(
+            `👤 **${u.name ?? u.username}** (@${u.username})\n` +
+              `${u.tier} · ${u.points} poin · ${u._count.threads} thread · ${u._count.posts} balasan · ${u._count.statuses} status\n` +
+              (u.bio ? `> ${u.bio.slice(0, 150)}\n` : "") +
+              `${site}/u/${u.username}`,
+            { ephemeral: true },
+          );
+        }
+
         default:
           return reply(`❓ Command \`/${commandName}\` tidak dikenal.`, {
             ephemeral: true,

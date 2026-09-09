@@ -41,6 +41,12 @@ model User {
   banReason  String?
   mutedUntil DateTime?
 
+  // Preferensi notifikasi
+  notifyMention  Boolean @default(true)
+  notifyReply    Boolean @default(true)
+  notifyReaction Boolean @default(true)
+  notifyFollow   Boolean @default(true)
+
   lastSeenAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -56,9 +62,18 @@ model User {
   bookmarks     Bookmark[]
   subscriptions ThreadSubscription[]
   achievements  UserAchievement[]
-  statuses       Status[]
-  statusLikes    StatusLike[]
-  statusComments StatusComment[]
+  statuses        Status[]
+  statusLikes     StatusLike[]
+  statusComments  StatusComment[]
+  statusReactions StatusReaction[]
+  pollVotes       PollVote[]
+
+  following Follow[] @relation("follower")
+  followers Follow[] @relation("following")
+  blocking  Block[]  @relation("blocker")
+  blockedBy Block[]  @relation("blocked")
+  warnings         Warning[] @relation("warned")
+  warningsIssued   Warning[] @relation("warner")
 
   notifications      Notification[] @relation("recipient")
   actedNotifications Notification[] @relation("actor")
@@ -68,6 +83,46 @@ model User {
 
   @@index([points])
   @@index([lastSeenAt])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model Warning {
+  id          String    @id @default(cuid())
+  userId      String
+  moderatorId String?
+  reason      String
+  severity    Int       @default(1)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  user      User  @relation("warned", fields: [userId], references: [id], onDelete: Cascade)
+  moderator User? @relation("warner", fields: [moderatorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }
 
 model Account {
@@ -120,7 +175,18 @@ model SiteConfig {
   maintenanceMode  Boolean  @default(false)
   webhookUsername  String   @default("RnB")
   webhookAvatar    String?
+  bannedWords      String?  // dipisah baris baru; cocok = konten diblokir
   updatedAt        DateTime @updatedAt
+}
+
+/* Cache preview link (Open Graph) */
+model LinkPreview {
+  url         String   @id
+  title       String?
+  description String?
+  image       String?
+  siteName    String?
+  fetchedAt   DateTime @default(now())
 }
 
 /* ========================================================================== */
@@ -151,6 +217,7 @@ model Thread {
   pinned     Boolean  @default(false)
   locked     Boolean  @default(false)
   views      Int      @default(0)
+  bestPostId String?  @unique
   createdAt  DateTime @default(now())
   lastPostAt DateTime @default(now())
   deletedAt  DateTime?
@@ -160,6 +227,7 @@ model Thread {
   posts         Post[]
   bookmarks     Bookmark[]
   subscriptions ThreadSubscription[]
+  poll          Poll?
 
   @@index([categoryId, pinned, lastPostAt])
   @@index([lastPostAt])
@@ -248,17 +316,34 @@ model Status {
   id        String    @id @default(cuid())
   authorId  String?
   body      String
+  pinned    Boolean   @default(false)
   createdAt DateTime  @default(now())
   editedAt  DateTime?
   deletedAt DateTime?
 
-  author   User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  images   StatusImage[]
-  likes    StatusLike[]
-  comments StatusComment[]
+  author    User?            @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  images    StatusImage[]
+  likes     StatusLike[]
+  reactions StatusReaction[]
+  comments  StatusComment[]
+  poll      Poll?
 
   @@index([createdAt])
   @@index([authorId, createdAt])
+}
+
+model StatusReaction {
+  id        String   @id @default(cuid())
+  statusId  String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  status Status @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([statusId, userId, emoji])
+  @@index([statusId])
 }
 
 model StatusImage {
@@ -289,14 +374,64 @@ model StatusComment {
   id        String    @id @default(cuid())
   statusId  String
   authorId  String?
+  parentId  String?
   body      String
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  status Status @relation(fields: [statusId], references: [id], onDelete: Cascade)
-  author User?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  status  Status          @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  author  User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  parent  StatusComment?  @relation("commentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies StatusComment[] @relation("commentReplies")
 
   @@index([statusId, createdAt])
+  @@index([parentId])
+}
+
+/* ========================================================================== */
+/*  Polls (thread ATAU status, salah satu)                                     */
+/* ========================================================================== */
+
+model Poll {
+  id        String       @id @default(cuid())
+  threadId  String?      @unique
+  statusId  String?      @unique
+  question  String
+  multiple  Boolean      @default(false)
+  closesAt  DateTime?
+  createdAt DateTime     @default(now())
+
+  thread  Thread?      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  status  Status?      @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+}
+
+model PollOption {
+  id       String @id @default(cuid())
+  pollId   String
+  text     String
+  position Int    @default(0)
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id       String   @id @default(cuid())
+  pollId   String
+  optionId String
+  userId   String
+  createdAt DateTime @default(now())
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([pollId, userId])
 }
 
 /* ========================================================================== */
@@ -326,6 +461,7 @@ enum NotificationType {
   MOD_ACTION
   SYSTEM
   ACHIEVEMENT
+  FOLLOW
 }
 
 model Notification {

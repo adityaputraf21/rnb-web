@@ -9,6 +9,7 @@ import { PostCard, type PostView } from "@/components/forum/post-card";
 import { ReplyForm } from "@/components/forum/reply-form";
 import { ThreadModActions } from "@/components/forum/thread-mod-actions";
 import { ThreadToolbar } from "@/components/forum/thread-toolbar";
+import { Poll } from "@/components/poll";
 import { timeAgo } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -129,8 +130,41 @@ export default async function ThreadPage({
       myReactions: mine,
       isOp: p.id === firstPostId,
       authorIsMe: !!user && p.author?.id === user.id,
+      isBest: p.id === thread.bestPostId,
     };
   });
+
+  const canMarkBest =
+    !!user && (canModerate || thread.authorId === user.id);
+
+  const poll = await prisma.poll
+    .findUnique({
+      where: { threadId: thread.id },
+      include: {
+        options: {
+          orderBy: { position: "asc" },
+          include: { _count: { select: { votes: true } } },
+        },
+        votes: { select: { optionId: true, userId: true } },
+      },
+    })
+    .catch(() => null);
+  const pollData = poll
+    ? {
+        id: poll.id,
+        question: poll.question,
+        multiple: poll.multiple,
+        closesAt: poll.closesAt?.toISOString() ?? null,
+        options: poll.options.map((o) => ({
+          id: o.id,
+          text: o.text,
+          count: o._count.votes,
+        })),
+        myVotes: poll.votes
+          .filter((v) => user && v.userId === user.id)
+          .map((v) => v.optionId),
+      }
+    : null;
 
   const muted = !!user?.mutedUntil && new Date(user.mutedUntil) > new Date();
   const canReply = !!user && !muted && (!thread.locked || canModerate);
@@ -180,6 +214,10 @@ export default async function ThreadPage({
         loggedIn={!!user}
       />
 
+      {pollData && pageNum === 1 && (
+        <Poll poll={pollData} loggedIn={!!user} />
+      )}
+
       <div className="space-y-3">
         {views.map((v) => (
           <PostCard
@@ -188,6 +226,8 @@ export default async function ThreadPage({
             currentUserId={user?.id ?? null}
             canModerate={canModerate}
             timeAgoLabel={timeAgo(v.createdAt)}
+            threadId={thread.id}
+            canMarkBest={canMarkBest}
           />
         ))}
       </div>

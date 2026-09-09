@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownEditor } from "@/components/forum/markdown-editor";
+import { PollComposer, pollPayload, type PollDraft } from "@/components/poll-composer";
 
 export function NewThreadForm({
   categoryId,
@@ -18,6 +19,7 @@ export function NewThreadForm({
   const router = useRouter();
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
+  const [poll, setPoll] = React.useState<PollDraft | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -29,7 +31,7 @@ export function NewThreadForm({
       const res = await fetch("/api/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryId, title, body }),
+        body: JSON.stringify({ categoryId, title, body, poll: pollPayload(poll) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "gagal membuat thread");
@@ -58,6 +60,7 @@ export function NewThreadForm({
         <Label>Isi</Label>
         <MarkdownEditor value={body} onChange={setBody} minHeight={220} />
       </div>
+      <PollComposer value={poll} onChange={setPoll} />
       <div className="flex gap-2">
         <Button type="submit" disabled={submitting}>
           {submitting ? "Memposting…" : "Posting thread"}

@@ -6,6 +6,7 @@ import { notify, notifyMentions } from "@/lib/notifications";
 import { subscribe, notifySubscribers } from "@/lib/subscriptions";
 import { checkAchievements } from "@/lib/achievements";
 import { assertPostRate } from "@/lib/ratelimit";
+import { assertClean } from "@/lib/automod";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,12 @@ export async function POST(req: Request) {
   const { threadId, body } = await req.json().catch(() => ({}));
   if (typeof body !== "string" || body.trim().length < 2 || !threadId) {
     return NextResponse.json({ error: "isi balasan kosong" }, { status: 400 });
+  }
+
+  try {
+    await assertClean(body);
+  } catch (res) {
+    return res as Response;
   }
 
   const thread = await prisma.thread.findUnique({

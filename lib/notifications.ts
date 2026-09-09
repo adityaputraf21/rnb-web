@@ -10,6 +10,18 @@ export function extractMentions(body: string): string[] {
   return [...out];
 }
 
+const PREF_FIELD: Partial<
+  Record<
+    NotificationType,
+    "notifyMention" | "notifyReply" | "notifyReaction" | "notifyFollow"
+  >
+> = {
+  MENTION: "notifyMention",
+  REPLY: "notifyReply",
+  REACTION: "notifyReaction",
+  FOLLOW: "notifyFollow",
+};
+
 export async function notify(input: {
   userId: string;
   actorId?: string | null;
@@ -19,6 +31,34 @@ export async function notify(input: {
   url?: string;
 }) {
   if (input.actorId && input.actorId === input.userId) return; // jangan notif diri sendiri
+
+  // Hormati preferensi + jangan notif dari user yang saling blokir.
+  const field = PREF_FIELD[input.type];
+  if (field) {
+    const recipient = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: {
+        notifyMention: true,
+        notifyReply: true,
+        notifyReaction: true,
+        notifyFollow: true,
+      },
+    });
+    if (recipient && recipient[field] === false) return;
+  }
+  if (input.actorId) {
+    const blocked = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: input.userId, blockedId: input.actorId },
+          { blockerId: input.actorId, blockedId: input.userId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (blocked) return;
+  }
+
   await prisma.notification.create({
     data: {
       userId: input.userId,

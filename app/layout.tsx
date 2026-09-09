@@ -10,7 +10,10 @@ export const metadata: Metadata = {
     template: "%s · RnB",
   },
   description:
-    "Forum komunitas RnB: diskusi, event, leaderboard, dan pengumuman — terintegrasi dengan Discord.",
+    "Forum komunitas RnB: diskusi, feed, event, leaderboard, dan pengumuman — terintegrasi dengan Discord.",
+  alternates: {
+    types: { "application/rss+xml": "/rss.xml" },
+  },
 };
 
 export default function RootLayout({
@@ -26,7 +29,12 @@ export default function RootLayout({
           <SiteHeader />
           <main className="container py-8">{children}</main>
           <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-            RnB · Rise Never Break — dibangun dengan Next.js & Discord
+            RnB · Rise Never Break ·{" "}
+            <a href="/rss.xml" className="hover:underline">
+              RSS
+            </a>{" "}
+            · <kbd className="rounded border px-1 text-xs">Ctrl</kbd>+
+            <kbd className="rounded border px-1 text-xs">K</kbd> untuk cari
           </footer>
         </Providers>
       </body>

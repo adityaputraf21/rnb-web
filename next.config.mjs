@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Repo ini adalah root project; abaikan lockfile lain di parent dir.
-  outputFileTracingRoot: import.meta.dirname,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "cdn.discordapp.com" },
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+      { protocol: "https", hostname: "picsum.photos" },
+      { protocol: "https", hostname: "**" },
+    ],
+  },
 };
 
 export default nextConfig;

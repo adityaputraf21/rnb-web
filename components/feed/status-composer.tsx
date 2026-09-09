@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { initials } from "@/lib/utils";
 import { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
+import { PollComposer, pollPayload, type PollDraft } from "@/components/poll-composer";
 
 export function StatusComposer({
   user,
@@ -20,6 +21,7 @@ export function StatusComposer({
   const router = useRouter();
   const [body, setBody] = React.useState("");
   const [images, setImages] = React.useState<string[]>([]);
+  const [poll, setPoll] = React.useState<PollDraft | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -45,19 +47,21 @@ export function StatusComposer({
   }
 
   async function submit() {
-    if (!body.trim() && images.length === 0)
-      return toast.error("Tulis sesuatu atau tambah gambar");
+    const pp = pollPayload(poll);
+    if (!body.trim() && images.length === 0 && !pp)
+      return toast.error("Tulis sesuatu, tambah gambar, atau polling");
     setBusy(true);
     try {
       const res = await fetch("/api/statuses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body, images }),
+        body: JSON.stringify({ body, images, poll: pp }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "gagal");
       setBody("");
       setImages([]);
+      setPoll(null);
       onPosted?.();
       router.refresh();
     } catch (e) {
@@ -104,6 +108,8 @@ export function StatusComposer({
               ))}
             </div>
           )}
+
+          <PollComposer value={poll} onChange={setPoll} />
 
           <div className="flex items-center justify-between">
             <Button

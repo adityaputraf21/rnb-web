@@ -20,14 +20,25 @@ export async function POST(
   if (!status || status.deletedAt)
     return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const { body } = await req.json().catch(() => ({}));
+  const { body, parentId } = await req.json().catch(() => ({}));
   if (typeof body !== "string" || body.trim().length < 1)
     return NextResponse.json({ error: "komentar kosong" }, { status: 400 });
+
+  let parent: string | null = null;
+  if (parentId) {
+    const p = await prisma.statusComment.findFirst({
+      where: { id: parentId, statusId: id, deletedAt: null },
+      select: { id: true, parentId: true },
+    });
+    // maksimal 1 tingkat: balasan dari balasan tetap menempel ke parent teratas
+    parent = p ? (p.parentId ?? p.id) : null;
+  }
 
   const comment = await prisma.statusComment.create({
     data: {
       statusId: id,
       authorId: user.id,
+      parentId: parent,
       body: body.trim().slice(0, 1000),
     },
     include: {
@@ -57,6 +68,7 @@ export async function POST(
   return NextResponse.json({
     id: comment.id,
     body: comment.body,
+    parentId: comment.parentId,
     createdAt: comment.createdAt,
     author: comment.author,
   });

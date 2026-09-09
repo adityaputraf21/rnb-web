@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasRole } from "@/lib/auth-helpers";
 import { StatusCard } from "@/components/feed/status-card";
-import { shapeStatus } from "@/lib/status-shape";
+import { shapeStatus, statusInclude } from "@/lib/status-shape";
 
 export const dynamic = "force-dynamic";
 
@@ -36,11 +36,7 @@ export default async function StatusPage({
   const s = await prisma.status.findFirst({
     where: { id, deletedAt: null },
     include: {
-      author: {
-        select: { username: true, name: true, image: true, role: true, tier: true },
-      },
-      images: { orderBy: { position: "asc" } },
-      likes: user ? { where: { userId: user.id }, select: { id: true } } : false,
+      ...statusInclude(user?.id),
       comments: {
         where: { deletedAt: null },
         orderBy: { createdAt: "asc" },
@@ -48,7 +44,6 @@ export default async function StatusPage({
           author: { select: { username: true, name: true, image: true } },
         },
       },
-      _count: { select: { likes: true, comments: true } },
     },
   });
   if (!s) notFound();
@@ -69,6 +64,7 @@ export default async function StatusPage({
         comments={s.comments.map((c) => ({
           id: c.id,
           body: c.body,
+          parentId: c.parentId,
           createdAt: c.createdAt.toISOString(),
           author: c.author,
         }))}

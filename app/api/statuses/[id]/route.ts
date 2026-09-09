@@ -27,6 +27,7 @@ export async function GET(
     comments: status.comments.map((c) => ({
       id: c.id,
       body: c.body,
+      parentId: c.parentId,
       createdAt: c.createdAt.toISOString(),
       author: c.author,
     })),

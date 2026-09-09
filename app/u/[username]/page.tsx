@@ -10,8 +10,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
 import { StatusCard } from "@/components/feed/status-card";
-import { shapeStatus } from "@/lib/status-shape";
+import { shapeStatus, statusInclude } from "@/lib/status-shape";
 import { hasRole } from "@/lib/auth-helpers";
+import { FollowButton } from "@/components/follow-button";
+import { ActivityHeatmap } from "@/components/profile/activity-heatmap";
+import { activityHeatmap } from "@/lib/heatmap";
 import { initials } from "@/lib/utils";
 import { timeAgo, fullDate } from "@/lib/format";
 import { tierClass, ROLE_LABEL, ROLE_BADGE } from "@/lib/tier-style";
@@ -59,24 +62,38 @@ export default async function ProfilePage({
   });
   if (!user) notFound();
 
-  const [rank, reactionsReceived, statusRows] = await Promise.all([
+  const [
+    rank,
+    reactionsReceived,
+    statusRows,
+    followerCount,
+    followingCount,
+    iFollow,
+    heat,
+  ] = await Promise.all([
     prisma.user
       .count({ where: { points: { gt: user.points } } })
       .then((n) => n + 1),
     prisma.reaction.count({ where: { post: { authorId: user.id } } }),
     prisma.status.findMany({
       where: { authorId: user.id, deletedAt: null },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
       take: 10,
-      include: {
-        author: {
-          select: { username: true, name: true, image: true, role: true, tier: true },
-        },
-        images: { orderBy: { position: "asc" } },
-        likes: me ? { where: { userId: me.id }, select: { id: true } } : false,
-        _count: { select: { likes: true, comments: true } },
-      },
+      include: statusInclude(me?.id),
     }),
+    prisma.follow.count({ where: { followingId: user.id } }),
+    prisma.follow.count({ where: { followerId: user.id } }),
+    me
+      ? prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: me.id,
+              followingId: user.id,
+            },
+          },
+        })
+      : null,
+    activityHeatmap(user.id),
   ]);
   const statuses = statusRows.map((s) => shapeStatus(s, me));
 
@@ -145,17 +162,35 @@ export default async function ProfilePage({
           <p className="text-sm text-muted-foreground">@{user.username}</p>
         </div>
 
-        {isMe && (
+        {isMe ? (
           <Button variant="outline" size="sm" asChild>
             <Link href="/settings">
               <Pencil /> Edit profil
             </Link>
           </Button>
+        ) : (
+          <FollowButton
+            username={user.username}
+            initialFollowing={!!iFollow}
+            loggedIn={!!me}
+          />
         )}
       </div>
 
+      {/* Follow counts */}
+      <div className="mt-3 flex gap-4 px-2 text-sm">
+        <Link href={`/u/${user.username}/followers`} className="hover:underline">
+          <span className="font-bold">{followerCount}</span>{" "}
+          <span className="text-muted-foreground">pengikut</span>
+        </Link>
+        <Link href={`/u/${user.username}/following`} className="hover:underline">
+          <span className="font-bold">{followingCount}</span>{" "}
+          <span className="text-muted-foreground">mengikuti</span>
+        </Link>
+      </div>
+
       {/* Meta row */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-sm text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-sm text-muted-foreground">
         <span className="flex items-center gap-1">
           <CalendarDays className="h-3.5 w-3.5" /> Bergabung{" "}
           {fullDate(user.createdAt)}
@@ -226,6 +261,12 @@ export default async function ProfilePage({
             );
           })}
         </div>
+      </div>
+
+      {/* Heatmap */}
+      <div className="mt-6">
+        <h2 className="mb-2 text-lg font-semibold">Aktivitas</h2>
+        <ActivityHeatmap cells={heat} />
       </div>
 
       {/* Activity tabs */}
