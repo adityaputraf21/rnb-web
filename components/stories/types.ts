@@ -2,6 +2,7 @@ export type StoryItem = {
   id: string;
   mediaUrl: string;
   mediaType: string;
+  bgColor?: string | null;
   caption: string | null;
   createdAt: string;
   viewed: boolean;

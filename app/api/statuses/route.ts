@@ -6,6 +6,7 @@ import { notifyMentions } from "@/lib/notifications";
 import { checkAchievements } from "@/lib/achievements";
 import { assertPostRate } from "@/lib/ratelimit";
 import { blockedIdsFor } from "@/lib/blocks";
+import { mutedKeywordsFor, mutedStatusWhere } from "@/lib/mute";
 import { shapeStatus, statusInclude } from "@/lib/status-shape";
 
 export const runtime = "nodejs";
@@ -32,8 +33,10 @@ export async function GET(req: Request) {
     if (hidden.size) authorFilter = { authorId: { notIn: [...hidden] } };
   }
 
+  const muted = mutedStatusWhere(await mutedKeywordsFor(me.id));
+
   const rows = await prisma.status.findMany({
-    where: { deletedAt: null, ...authorFilter },
+    where: { deletedAt: null, ...authorFilter, ...muted },
     orderBy:
       sort === "top"
         ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }]

@@ -1,11 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { X, Loader2, ImagePlus } from "lucide-react";
+import { X, Loader2, ImagePlus, Type } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { uploadFile } from "@/lib/upload-client";
+import { cn } from "@/lib/utils";
+
+const BG = ["#5865F2", "#EB459E", "#57F287", "#FEE75C", "#ED4245", "#1e1f22"];
 
 export function StoryComposer({
   onClose,
@@ -14,10 +18,13 @@ export function StoryComposer({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const [mode, setMode] = React.useState<"media" | "text">("media");
   const [media, setMedia] = React.useState<{ url: string; type: string } | null>(
     null,
   );
   const [caption, setCaption] = React.useState("");
+  const [text, setText] = React.useState("");
+  const [bg, setBg] = React.useState(BG[0]);
   const [uploading, setUploading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -37,17 +44,28 @@ export function StoryComposer({
   }
 
   async function submit() {
-    if (!media) return;
     setBusy(true);
     try {
+      const payload =
+        mode === "text"
+          ? { mediaType: "text", caption: text, bgColor: bg }
+          : {
+              mediaUrl: media?.url,
+              mediaType: media?.type,
+              caption,
+            };
+      if (mode === "text" && !text.trim()) {
+        setBusy(false);
+        return toast.error("Tulis sesuatu");
+      }
+      if (mode === "media" && !media) {
+        setBusy(false);
+        return toast.error("Pilih media");
+      }
       const res = await fetch("/api/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mediaUrl: media.url,
-          mediaType: media.type,
-          caption,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "gagal");
       toast.success("Story diposting (hilang setelah 24 jam)");
@@ -70,7 +88,52 @@ export function StoryComposer({
           </Button>
         </div>
 
-        {media ? (
+        <div className="mb-3 flex gap-1">
+          <Button
+            size="sm"
+            variant={mode === "media" ? "secondary" : "ghost"}
+            onClick={() => setMode("media")}
+          >
+            <ImagePlus /> Media
+          </Button>
+          <Button
+            size="sm"
+            variant={mode === "text" ? "secondary" : "ghost"}
+            onClick={() => setMode("text")}
+          >
+            <Type /> Teks
+          </Button>
+        </div>
+
+        {mode === "text" ? (
+          <div className="space-y-2">
+            <div
+              className="flex min-h-40 items-center justify-center rounded-xl p-4"
+              style={{ background: bg }}
+            >
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Tulis sesuatu…"
+                maxLength={280}
+                className="resize-none border-0 bg-transparent text-center text-lg font-semibold text-white placeholder:text-white/60 focus-visible:ring-0"
+              />
+            </div>
+            <div className="flex gap-1.5">
+              {BG.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setBg(c)}
+                  className={cn(
+                    "h-7 w-7 rounded-full border-2",
+                    bg === c ? "border-foreground" : "border-transparent",
+                  )}
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : media ? (
           <div className="relative overflow-hidden rounded-xl bg-black">
             {media.type === "video" ? (
               <video src={media.url} className="max-h-[50vh] w-full" controls />
@@ -111,16 +174,18 @@ export function StoryComposer({
           }}
         />
 
-        <Input
-          value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          placeholder="Caption (opsional)"
-          maxLength={200}
-          className="mt-3"
-        />
+        {mode === "media" && (
+          <Input
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Caption (opsional)"
+            maxLength={200}
+            className="mt-3"
+          />
+        )}
         <Button
           className="mt-3 w-full"
-          disabled={!media || busy || uploading}
+          disabled={busy || uploading}
           onClick={submit}
         >
           {busy ? "Memposting…" : "Bagikan ke Story"}

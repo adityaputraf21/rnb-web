@@ -48,7 +48,7 @@ export default async function ThreadPage({
   const user = await getCurrentUser();
   const canModerate = hasRole(user, "MODERATOR");
 
-  const [bookmark, subscription, allCategories] = await Promise.all([
+  const [bookmark, subscription, allCategories, meRow] = await Promise.all([
     user
       ? prisma.bookmark.findUnique({
           where: { userId_threadId: { userId: user.id, threadId: thread.id } },
@@ -65,7 +65,14 @@ export default async function ThreadPage({
           select: { id: true, name: true },
         })
       : [],
+    user
+      ? prisma.user.findUnique({
+          where: { id: user.id },
+          select: { pinnedThreadId: true },
+        })
+      : null,
   ]);
+  const isThreadAuthor = !!user && thread.authorId === user.id;
 
   // hitung view (tidak menunggu)
   prisma.thread
@@ -212,6 +219,8 @@ export default async function ThreadPage({
         initialBookmarked={!!bookmark}
         initialSubscribed={!!subscription}
         loggedIn={!!user}
+        canPinProfile={isThreadAuthor}
+        initialPinnedToProfile={meRow?.pinnedThreadId === thread.id}
       />
 
       {pollData && pageNum === 1 && (

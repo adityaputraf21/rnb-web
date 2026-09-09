@@ -12,20 +12,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-type Notif = {
-  id: string;
-  title: string;
-  body: string | null;
-  url: string | null;
-  read: boolean;
-  createdAt: string;
-};
+import { groupNotifications, type NotifRow } from "@/lib/notif-group";
 
 export function NotificationsBell() {
-  const [items, setItems] = useState<Notif[]>([]);
+  const [items, setItems] = useState<NotifRow[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const groups = groupNotifications(items);
 
   const load = useCallback(async () => {
     try {
@@ -77,7 +70,7 @@ export function NotificationsBell() {
               Belum ada notifikasi.
             </p>
           )}
-          {items.map((n) => {
+          {groups.map((n) => {
             const inner = (
               <div
                 className={cn(
@@ -85,8 +78,15 @@ export function NotificationsBell() {
                   !n.read && "bg-primary/5",
                 )}
               >
-                <p className="font-medium">{n.title}</p>
-                {n.body && (
+                <p className="font-medium">
+                  {n.title}
+                  {n.count > 1 && (
+                    <span className="ml-1 text-muted-foreground">
+                      +{n.count - 1} lainnya
+                    </span>
+                  )}
+                </p>
+                {n.body && n.count === 1 && (
                   <p className="line-clamp-2 text-muted-foreground">{n.body}</p>
                 )}
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -97,12 +97,13 @@ export function NotificationsBell() {
                 </p>
               </div>
             );
+            const key = n.ids[0];
             return n.url ? (
-              <Link key={n.id} href={n.url} onClick={() => setOpen(false)}>
+              <Link key={key} href={n.url} onClick={() => setOpen(false)}>
                 {inner}
               </Link>
             ) : (
-              <div key={n.id}>{inner}</div>
+              <div key={key}>{inner}</div>
             );
           })}
         </div>

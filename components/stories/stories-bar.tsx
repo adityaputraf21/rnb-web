@@ -108,6 +108,7 @@ export function StoriesBar({
         <StoryViewer
           groups={groups}
           startGroup={viewer}
+          canSaveHighlight
           onClose={() => {
             setViewer(null);
             load();

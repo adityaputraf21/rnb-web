@@ -13,11 +13,28 @@ export async function PATCH(req: Request) {
     return res as Response;
   }
 
-  const { name, username, bio, website, bannerColor, bannerImage, image } =
-    await req.json().catch(() => ({}));
+  const {
+    name,
+    username,
+    bio,
+    website,
+    bannerColor,
+    bannerImage,
+    image,
+    mutedKeywords,
+  } = await req.json().catch(() => ({}));
   const data: Record<string, string | null> = {};
 
   if (typeof name === "string") data.name = name.trim().slice(0, 60) || null;
+  if (typeof mutedKeywords === "string") {
+    const cleaned = mutedKeywords
+      .split(",")
+      .map((s: string) => s.trim().toLowerCase())
+      .filter(Boolean)
+      .slice(0, 50)
+      .join(",");
+    data.mutedKeywords = cleaned || null;
+  }
   if (typeof bio === "string") data.bio = bio.trim().slice(0, 500) || null;
   if (typeof image === "string")
     data.image = /^https:\/\//.test(image) ? image : null;
@@ -62,6 +79,7 @@ export async function PATCH(req: Request) {
       bannerColor: true,
       bannerImage: true,
       image: true,
+      mutedKeywords: true,
     },
   });
   return NextResponse.json(updated);

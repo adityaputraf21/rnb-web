@@ -33,6 +33,7 @@ import { CommentSection, type CommentView } from "@/components/feed/comment-sect
 import { ReactionBar } from "@/components/reaction-bar";
 import { ReportButton } from "@/components/forum/report-button";
 import { LinkPreview } from "@/components/link-preview";
+import { PeopleDialog } from "@/components/feed/people-dialog";
 import { Poll, type PollData } from "@/components/poll";
 import { initials, cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
@@ -86,9 +87,15 @@ export function StatusCard({
   showComments?: boolean;
 }) {
   const router = useRouter();
-  const isRepost = !!status.repostedBy && !!status.original;
-  const s = status.original ?? status; // konten & aksi menunjuk ke ini
+  const hasOriginal = !!status.repostedBy && !!status.original;
+  const isQuote = hasOriginal && status.body.trim().length > 0;
+  const isRepost = hasOriginal && !isQuote;
+  // Quote: aksi & konten = post kutipan itu sendiri. Repost polos = original.
+  const s = isRepost ? status.original! : status;
+  const quoted = isQuote ? status.original! : null;
 
+  const [showLikers, setShowLikers] = React.useState(false);
+  const [showReposters, setShowReposters] = React.useState(false);
   const [liked, setLiked] = React.useState(s.liked);
   const [likeCount, setLikeCount] = React.useState(s.likeCount);
   const [reposted, setReposted] = React.useState(s.reposted);
@@ -123,6 +130,20 @@ export function StatusCard({
     setReposted(d.reposted);
     setRepostCount(d.count);
     toast.success(d.reposted ? "Di-repost ke feed kamu" : "Repost dibatalkan");
+    router.refresh();
+  }
+
+  async function quote() {
+    if (!currentUsername) return toast.error("Masuk dulu");
+    const body = prompt("Tulis komentar untuk kutipan ini:");
+    if (body == null || !body.trim()) return;
+    const res = await fetch(`/api/statuses/${s.id}/repost`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+    if (!res.ok) return toast.error((await res.json()).error ?? "gagal");
+    toast.success("Dikutip ke feed kamu");
     router.refresh();
   }
 
@@ -321,8 +342,32 @@ export function StatusCard({
       )}
 
       <MediaGrid media={s.media} />
-      {link && s.media.length === 0 && <LinkPreview url={link} />}
+      {link && s.media.length === 0 && !quoted && <LinkPreview url={link} />}
       {s.poll && <Poll poll={s.poll} loggedIn={!!currentUsername} />}
+
+      {quoted && (
+        <Link
+          href={`/feed/${quoted.id}`}
+          className="mt-2 block rounded-xl border p-3 hover:bg-accent/40"
+        >
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="font-semibold">
+              {quoted.author?.name ?? quoted.author?.username ?? "Pengguna dihapus"}
+            </span>
+            <span className="text-muted-foreground">
+              @{quoted.author?.username} · {timeAgo(quoted.createdAt)}
+            </span>
+          </div>
+          {quoted.body && (
+            <p className="mt-0.5 line-clamp-4 whitespace-pre-wrap text-sm">
+              {quoted.body}
+            </p>
+          )}
+          {quoted.media.length > 0 && (
+            <MediaGrid media={quoted.media.slice(0, 2)} />
+          )}
+        </Link>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-1 text-muted-foreground">
         <Button
@@ -330,23 +375,49 @@ export function StatusCard({
           size="sm"
           className={cn("gap-1.5", liked && "text-red-500")}
           onClick={toggleLike}
+          onDoubleClick={() => likeCount > 0 && setShowLikers(true)}
         >
           <Heart className={cn("h-4 w-4", liked && "fill-current")} />
-          {likeCount > 0 && likeCount}
+          {likeCount > 0 && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowLikers(true);
+              }}
+            >
+              {likeCount}
+            </span>
+          )}
         </Button>
         <Button variant="ghost" size="sm" className="gap-1.5" onClick={openComments}>
           <MessageCircle className="h-4 w-4" />
           {s.commentCount > 0 && s.commentCount}
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn("gap-1.5", reposted && "text-green-500")}
-          onClick={toggleRepost}
-        >
-          <Repeat2 className="h-4 w-4" />
-          {repostCount > 0 && repostCount}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn("gap-1.5", reposted && "text-green-500")}
+            >
+              <Repeat2 className="h-4 w-4" />
+              {repostCount > 0 && repostCount}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={toggleRepost}>
+              <Repeat2 /> {reposted ? "Batal repost" : "Repost"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={quote}>
+              <Pencil /> Kutip
+            </DropdownMenuItem>
+            {repostCount > 0 && (
+              <DropdownMenuItem onClick={() => setShowReposters(true)}>
+                Lihat yang repost
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           variant="ghost"
           size="sm"
@@ -374,6 +445,19 @@ export function StatusCard({
           canModerate={canModerate}
         />
       )}
+
+      <PeopleDialog
+        open={showLikers}
+        onOpenChange={setShowLikers}
+        title="Disukai oleh"
+        fetchUrl={`/api/statuses/${s.id}/likers?type=like`}
+      />
+      <PeopleDialog
+        open={showReposters}
+        onOpenChange={setShowReposters}
+        title="Di-repost oleh"
+        fetchUrl={`/api/statuses/${s.id}/likers?type=repost`}
+      />
     </article>
   );
 }

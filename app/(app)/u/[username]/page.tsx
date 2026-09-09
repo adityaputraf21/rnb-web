@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Globe, Circle, Pencil, CalendarDays, Award } from "lucide-react";
+import {
+  Globe,
+  Circle,
+  Pencil,
+  CalendarDays,
+  Award,
+  Pin,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
 import { StatusCard } from "@/components/feed/status-card";
 import { ProfileStoryRing } from "@/components/stories/profile-story-ring";
+import { HighlightsRow } from "@/components/stories/highlights-row";
 import { shapeStatus, statusInclude } from "@/lib/status-shape";
 import { hasRole } from "@/lib/auth-helpers";
 import { FollowButton } from "@/components/follow-button";
@@ -71,6 +79,8 @@ export default async function ProfilePage({
     followingCount,
     iFollow,
     heat,
+    highlights,
+    pinnedThread,
   ] = await Promise.all([
     prisma.user
       .count({ where: { points: { gt: user.points } } })
@@ -95,6 +105,23 @@ export default async function ProfilePage({
         })
       : null,
     activityHeatmap(user.id),
+    prisma.highlight.findMany({
+      where: { userId: user.id },
+      orderBy: { position: "asc" },
+      select: {
+        id: true,
+        mediaUrl: true,
+        mediaType: true,
+        bgColor: true,
+        caption: true,
+      },
+    }),
+    user.pinnedThreadId
+      ? prisma.thread.findFirst({
+          where: { id: user.pinnedThreadId, deletedAt: null },
+          include: { category: true, _count: { select: { posts: true } } },
+        })
+      : null,
   ]);
   const statuses = statusRows.map((s) => shapeStatus(s, me));
 
@@ -223,6 +250,38 @@ export default async function ProfilePage({
             <Markdown className="prose-sm">{user.bio}</Markdown>
           </CardContent>
         </Card>
+      )}
+
+      {/* Highlights */}
+      {highlights.length > 0 && (
+        <div className="mt-4 flex gap-3 overflow-x-auto px-2 pb-1">
+          <HighlightsRow
+            highlights={highlights}
+            owner={{
+              username: user.username,
+              name: user.name,
+              image: user.image,
+            }}
+            isMe={isMe}
+          />
+        </div>
+      )}
+
+      {/* Pinned thread */}
+      {pinnedThread && (
+        <Link
+          href={`/forum/${pinnedThread.category.slug}/${pinnedThread.slug}`}
+          className="mt-4 flex items-start gap-3 rounded-xl border bg-card p-3 hover:bg-accent/50"
+        >
+          <Pin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{pinnedThread.title}</p>
+            <p className="text-xs text-muted-foreground">
+              Disematkan · {pinnedThread.category.name} ·{" "}
+              {pinnedThread._count.posts} balasan
+            </p>
+          </div>
+        </Link>
       )}
 
       {/* Stats */}

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Trash2, Eye, ChevronLeft, ChevronRight, Send } from "lucide-react";
+import { X, Trash2, Eye, ChevronLeft, ChevronRight, Send, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { initials, cn } from "@/lib/utils";
@@ -16,11 +16,17 @@ export function StoryViewer({
   startGroup,
   onClose,
   onViewed,
+  track = true,
+  canSaveHighlight = false,
+  onDelete,
 }: {
   groups: StoryGroup[];
   startGroup: number;
   onClose: () => void;
   onViewed: (storyId: string) => void;
+  track?: boolean;
+  canSaveHighlight?: boolean;
+  onDelete?: (id: string) => Promise<void> | void;
 }) {
   const [gi, setGi] = React.useState(startGroup);
   const [si, setSi] = React.useState(0);
@@ -88,13 +94,15 @@ export function StoryViewer({
     setProgress(0);
   }, [si, gi, groups]);
 
-  // mark viewed + auto-advance for images
+  // mark viewed + auto-advance for images/text
   React.useEffect(() => {
     if (!story) return;
-    if (!story.viewed && !story.mine) onViewed(story.id);
-    fetch(`/api/stories/${story.id}/view`, { method: "POST" }).catch(() => {});
+    if (track) {
+      if (!story.viewed && !story.mine) onViewed(story.id);
+      fetch(`/api/stories/${story.id}/view`, { method: "POST" }).catch(() => {});
+    }
 
-    if (story.mediaType === "image" && !paused) {
+    if (story.mediaType !== "video" && !paused) {
       const start = Date.now() - progress * IMAGE_MS;
       timerRef.current = window.setInterval(() => {
         const p = Math.min(1, (Date.now() - start) / IMAGE_MS);
@@ -109,7 +117,19 @@ export function StoryViewer({
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [story, next, onViewed, paused]);
+  }, [story, next, onViewed, paused, track]);
+
+  async function saveHighlight() {
+    if (!story) return;
+    const res = await fetch("/api/highlights", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storyId: story.id }),
+    });
+    toast[res.ok ? "success" : "error"](
+      res.ok ? "Disimpan ke Highlight" : "Gagal",
+    );
+  }
 
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -122,7 +142,12 @@ export function StoryViewer({
   }, [next, prev, onClose]);
 
   async function del() {
-    if (!story || !confirm("Hapus story ini?")) return;
+    if (!story || !confirm("Hapus?")) return;
+    if (onDelete) {
+      await onDelete(story.id);
+      onClose();
+      return;
+    }
     const res = await fetch(`/api/stories/${story.id}`, { method: "DELETE" });
     if (res.ok) {
       toast.success("Dihapus");
@@ -159,18 +184,23 @@ export function StoryViewer({
           <span className="text-sm font-medium">{group.name ?? group.username}</span>
           <span className="text-xs text-white/70">{timeAgo(story.createdAt)}</span>
           <div className="ml-auto flex items-center gap-2">
-            {story.mine && (
-              <>
-                <button
-                  onClick={openViewers}
-                  className="flex items-center gap-1 text-xs hover:underline"
-                >
-                  <Eye className="h-4 w-4" /> {story.views}
-                </button>
-                <button onClick={del}>
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </>
+            {story.mine && track && (
+              <button
+                onClick={openViewers}
+                className="flex items-center gap-1 text-xs hover:underline"
+              >
+                <Eye className="h-4 w-4" /> {story.views}
+              </button>
+            )}
+            {story.mine && canSaveHighlight && (
+              <button onClick={saveHighlight} title="Simpan ke Highlight">
+                <Star className="h-4 w-4" />
+              </button>
+            )}
+            {story.mine && (track || onDelete) && (
+              <button onClick={del}>
+                <Trash2 className="h-4 w-4" />
+              </button>
             )}
             <button onClick={onClose}>
               <X className="h-5 w-5" />
@@ -179,8 +209,19 @@ export function StoryViewer({
         </div>
 
         {/* media */}
-        <div className="flex flex-1 items-center justify-center">
-          {story.mediaType === "video" ? (
+        <div
+          className="flex flex-1 items-center justify-center"
+          style={
+            story.mediaType === "text"
+              ? { background: story.bgColor ?? "#5865F2" }
+              : undefined
+          }
+        >
+          {story.mediaType === "text" ? (
+            <p className="px-8 text-center text-2xl font-semibold leading-snug text-white">
+              {story.caption}
+            </p>
+          ) : story.mediaType === "video" ? (
             <video
               key={story.id}
               ref={(el) => {
@@ -211,7 +252,7 @@ export function StoryViewer({
           )}
         </div>
 
-        {story.caption && (
+        {story.caption && story.mediaType !== "text" && (
           <p
             className={cn(
               "absolute left-0 right-0 px-6 text-center text-sm text-white drop-shadow",

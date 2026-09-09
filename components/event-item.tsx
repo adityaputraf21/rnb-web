@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import {
+  MapPin,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  CalendarPlus,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,17 +41,51 @@ export type EventView = {
   whenLabel: string;
   createdByName: string | null;
   past: boolean;
+  myRsvp: string | null;
+  rsvpCounts: { going: number; maybe: number; no: number };
 };
+
+const RSVP_OPTS: { key: "going" | "maybe" | "no"; label: string }[] = [
+  { key: "going", label: "Hadir" },
+  { key: "maybe", label: "Mungkin" },
+  { key: "no", label: "Tidak" },
+];
 
 export function EventItem({
   e,
   canManage,
+  loggedIn,
 }: {
   e: EventView;
   canManage: boolean;
+  loggedIn: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = React.useState(false);
+  const [rsvp, setRsvp] = React.useState(e.myRsvp);
+  const [counts, setCounts] = React.useState(e.rsvpCounts);
+  const [rsvpBusy, setRsvpBusy] = React.useState(false);
+
+  async function setRsvpStatus(status: string) {
+    if (rsvpBusy) return;
+    setRsvpBusy(true);
+    const next = rsvp === status ? "clear" : status;
+    try {
+      const res = await fetch(`/api/events/${e.id}/rsvp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setRsvp(data.my);
+      setCounts(data.counts);
+    } catch {
+      toast.error("Gagal menyimpan RSVP");
+    } finally {
+      setRsvpBusy(false);
+    }
+  }
   const [form, setForm] = React.useState({
     title: e.title,
     date: e.dateInput,
@@ -136,6 +177,36 @@ export function EventItem({
             oleh {e.createdByName}
           </p>
         )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {loggedIn &&
+            !e.past &&
+            RSVP_OPTS.map((o) => (
+              <Button
+                key={o.key}
+                size="sm"
+                variant={rsvp === o.key ? "default" : "outline"}
+                disabled={rsvpBusy}
+                onClick={() => setRsvpStatus(o.key)}
+              >
+                {rsvp === o.key && <Check className="h-3.5 w-3.5" />}
+                {o.label}
+                {counts[o.key] > 0 && (
+                  <span className="ml-1 opacity-70">{counts[o.key]}</span>
+                )}
+              </Button>
+            ))}
+          {(!loggedIn || e.past) && (
+            <span className="text-xs text-muted-foreground">
+              {counts.going} hadir · {counts.maybe} mungkin
+            </span>
+          )}
+          <Button size="sm" variant="ghost" asChild>
+            <a href={`/api/events/${e.id}/ics`}>
+              <CalendarPlus className="h-3.5 w-3.5" /> Kalender
+            </a>
+          </Button>
+        </div>
       </CardContent>
 
       <Dialog open={editing} onOpenChange={setEditing}>

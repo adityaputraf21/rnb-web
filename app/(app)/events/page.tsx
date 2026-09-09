@@ -24,19 +24,35 @@ export default async function EventsPage() {
   const events = await prisma.event.findMany({
     orderBy: [{ startsAt: "asc" }, { createdAt: "desc" }],
     take: 100,
+    include: {
+      rsvps: {
+        select: { status: true, userId: true },
+      },
+    },
   });
 
-  const toView = (e: (typeof events)[number]): EventView => ({
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    location: e.location,
-    dateLabel: e.dateLabel,
-    dateInput: toDateInput(e.startsAt),
-    whenLabel: e.startsAt ? fullDate(e.startsAt) : e.dateLabel,
-    createdByName: e.createdByName,
-    past: !!e.startsAt && e.startsAt < now,
-  });
+  const toView = (e: (typeof events)[number]): EventView => {
+    const rsvpCounts = { going: 0, maybe: 0, no: 0 };
+    let myRsvp: string | null = null;
+    for (const r of e.rsvps) {
+      if (r.status in rsvpCounts)
+        rsvpCounts[r.status as keyof typeof rsvpCounts]++;
+      if (user && r.userId === user.id) myRsvp = r.status;
+    }
+    return {
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      location: e.location,
+      dateLabel: e.dateLabel,
+      dateInput: toDateInput(e.startsAt),
+      whenLabel: e.startsAt ? fullDate(e.startsAt) : e.dateLabel,
+      createdByName: e.createdByName,
+      past: !!e.startsAt && e.startsAt < now,
+      myRsvp,
+      rsvpCounts,
+    };
+  };
 
   const upcoming = events.filter((e) => !e.startsAt || e.startsAt >= now).map(toView);
   const past = events
@@ -62,7 +78,12 @@ export default async function EventsPage() {
           </p>
         )}
         {upcoming.map((e) => (
-          <EventItem key={e.id} e={e} canManage={canManage} />
+          <EventItem
+            key={e.id}
+            e={e}
+            canManage={canManage}
+            loggedIn={!!user}
+          />
         ))}
       </div>
 
@@ -70,7 +91,12 @@ export default async function EventsPage() {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Sudah lewat</h2>
           {past.map((e) => (
-            <EventItem key={e.id} e={e} canManage={canManage} />
+            <EventItem
+            key={e.id}
+            e={e}
+            canManage={canManage}
+            loggedIn={!!user}
+          />
           ))}
         </div>
       )}

@@ -52,6 +52,10 @@ model User {
   streakLastAt DateTime?
   onboardedAt  DateTime?
 
+  mutedKeywords  String? // dipisah koma, sembunyikan post yang mengandung
+  pinnedThreadId String?
+  invitedById    String?
+
   lastSeenAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -86,7 +90,17 @@ model User {
   stories          Story[]
   storyViews       StoryView[]
   storyReactions   StoryReaction[]
+  highlights       Highlight[]
   pushSubs         PushSubscription[]
+  bookmarkFolders  BookmarkFolder[]
+  eventRsvps       EventRSVP[]
+  appeals          Appeal[]        @relation("appellant")
+  appealsReviewed  Appeal[]        @relation("appealReviewer")
+  modNotesAbout    ModNote[]       @relation("modNoteTarget")
+  modNotesWritten  ModNote[]       @relation("modNoteAuthor")
+  invitesCreated   Invite[]        @relation("inviter")
+  invitedBy        User?           @relation("invitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitees         User[]          @relation("invitedBy")
 
   notifications      Notification[] @relation("recipient")
   actedNotifications Notification[] @relation("actor")
@@ -300,15 +314,29 @@ model Bookmark {
   userId    String
   threadId  String?
   statusId  String?
+  folderId  String?
   createdAt DateTime @default(now())
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  thread Thread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  status Status? @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread?         @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  status Status?         @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  folder BookmarkFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@unique([userId, threadId])
   @@unique([userId, statusId])
   @@index([userId, createdAt])
+}
+
+model BookmarkFolder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmarks Bookmark[]
+
+  @@index([userId])
 }
 
 model ThreadSubscription {
@@ -470,6 +498,8 @@ model Conversation {
   bMuted        Boolean   @default(false)
   aClearedAt    DateTime? // sembunyikan pesan sebelum ini dari sisi A
   bClearedAt    DateTime?
+  aTypingAt     DateTime?
+  bTypingAt     DateTime?
   createdAt     DateTime  @default(now())
 
   a        User      @relation("convA", fields: [aId], references: [id], onDelete: Cascade)
@@ -542,8 +572,9 @@ model Hashtag {
 model Story {
   id        String   @id @default(cuid())
   authorId  String?
-  mediaUrl  String
-  mediaType String // image | video
+  mediaUrl  String   @default("")
+  mediaType String // image | video | text
+  bgColor   String? // untuk story teks
   caption   String?
   createdAt DateTime @default(now())
   expiresAt DateTime
@@ -554,6 +585,21 @@ model Story {
 
   @@index([expiresAt])
   @@index([authorId, createdAt])
+}
+
+model Highlight {
+  id        String   @id @default(cuid())
+  userId    String
+  mediaUrl  String   @default("")
+  mediaType String
+  bgColor   String?
+  caption   String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position])
 }
 
 model StoryReaction {
@@ -704,7 +750,71 @@ model Event {
   createdByName String?
   createdAt     DateTime  @default(now())
 
-  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  author User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  rsvps  EventRSVP[]
 
   @@index([startsAt])
+}
+
+model EventRSVP {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   @default("going") // going | maybe | no
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+}
+
+enum AppealStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+}
+
+model Appeal {
+  id         String       @id @default(cuid())
+  userId     String
+  body       String
+  status     AppealStatus @default(OPEN)
+  reviewerId String?
+  note       String?
+  createdAt  DateTime     @default(now())
+  reviewedAt DateTime?
+
+  user     User  @relation("appellant", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("appealReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model ModNote {
+  id        String   @id @default(cuid())
+  userId    String // target
+  authorId  String?
+  body      String
+  createdAt DateTime @default(now())
+
+  user   User  @relation("modNoteTarget", fields: [userId], references: [id], onDelete: Cascade)
+  author User? @relation("modNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model Invite {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  inviterId String
+  uses      Int       @default(0)
+  maxUses   Int       @default(0) // 0 = tak terbatas
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  inviter User @relation("inviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([inviterId])
 }

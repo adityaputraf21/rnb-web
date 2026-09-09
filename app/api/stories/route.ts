@@ -36,6 +36,7 @@ export async function GET() {
         id: string;
         mediaUrl: string;
         mediaType: string;
+        bgColor: string | null;
         caption: string | null;
         createdAt: string;
         viewed: boolean;
@@ -65,6 +66,7 @@ export async function GET() {
       id: s.id,
       mediaUrl: s.mediaUrl,
       mediaType: s.mediaType,
+      bgColor: s.bgColor,
       caption: s.caption,
       createdAt: s.createdAt.toISOString(),
       viewed,
@@ -93,17 +95,26 @@ export async function POST(req: Request) {
     return res as Response;
   }
 
-  const { mediaUrl, mediaType, caption } = await req.json().catch(() => ({}));
-  if (typeof mediaUrl !== "string" || !/^https:\/\//.test(mediaUrl))
+  const { mediaUrl, mediaType, caption, bgColor } = await req
+    .json()
+    .catch(() => ({}));
+  const type = ["image", "video", "text"].includes(mediaType)
+    ? mediaType
+    : "image";
+  const cap = typeof caption === "string" ? caption.trim().slice(0, 280) : "";
+
+  if (type === "text") {
+    if (!cap) return NextResponse.json({ error: "tulis sesuatu" }, { status: 400 });
+  } else if (typeof mediaUrl !== "string" || !/^https:\/\//.test(mediaUrl)) {
     return NextResponse.json({ error: "media wajib" }, { status: 400 });
-  const type = ["image", "video"].includes(mediaType) ? mediaType : "image";
-  const cap = typeof caption === "string" ? caption.trim().slice(0, 200) : "";
+  }
 
   const story = await prisma.story.create({
     data: {
       authorId: user.id,
-      mediaUrl,
+      mediaUrl: type === "text" ? "" : mediaUrl,
       mediaType: type,
+      bgColor: /^#[0-9a-f]{6}$/i.test(bgColor ?? "") ? bgColor : null,
       caption: cap || null,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     },

@@ -1,19 +1,30 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppealForm } from "@/components/appeal-form";
 
 export const metadata = { title: "Akun diblokir" };
+export const dynamic = "force-dynamic";
 
 export default async function BannedPage() {
   const session = await auth();
-  const reason = session?.user
-    ? (
-        await prisma.user.findUnique({
-          where: { id: session.user.id },
+  const uid = session?.user?.id;
+  const [me, appeals] = await Promise.all([
+    uid
+      ? prisma.user.findUnique({
+          where: { id: uid },
           select: { banReason: true },
         })
-      )?.banReason
-    : null;
+      : null,
+    uid
+      ? prisma.appeal.findMany({
+          where: { userId: uid },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        })
+      : [],
+  ]);
+  const reason = me?.banReason ?? null;
 
   return (
     <div className="mx-auto max-w-md py-16">
@@ -28,9 +39,28 @@ export default async function BannedPage() {
               Alasan: <span className="text-foreground">{reason}</span>
             </p>
           )}
-          <p>Hubungi moderator di Discord kalau menurutmu ini keliru.</p>
+          <p>Kalau menurutmu ini keliru, ajukan banding di bawah.</p>
         </CardContent>
       </Card>
+
+      {session?.user && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-base">Ajukan banding</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AppealForm
+              initial={appeals.map((a) => ({
+                id: a.id,
+                body: a.body,
+                status: a.status,
+                note: a.note,
+                createdAt: a.createdAt.toISOString(),
+              }))}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

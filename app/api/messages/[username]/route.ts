@@ -41,6 +41,13 @@ export async function GET(
       ? conv.aMuted
       : conv.bMuted
     : false;
+  const otherTypingAt = conv
+    ? me.id === conv.aId
+      ? conv.bTypingAt
+      : conv.aTypingAt
+    : null;
+  const otherTyping =
+    !!otherTypingAt && Date.now() - otherTypingAt.getTime() < 6000;
 
   const before = new URL(req.url).searchParams.get("before") ?? undefined;
   const messages = conv
@@ -67,6 +74,7 @@ export async function GET(
   return NextResponse.json({
     other,
     muted,
+    otherTyping,
     canMessage: await canDM(me.id, other.id),
     messages: messages.reverse().map((m) => ({
       id: m.id,
@@ -165,6 +173,18 @@ export async function PATCH(
   const other = await resolveOther(username);
   if (!other) return NextResponse.json({ error: "not found" }, { status: 404 });
 
+  const { action } = await req.json().catch(() => ({}));
+
+  if (action === "typing") {
+    const conv = await getOrCreateConversation(me.id, other.id);
+    const isA = me.id === conv.aId;
+    await prisma.conversation.update({
+      where: { id: conv.id },
+      data: isA ? { aTypingAt: new Date() } : { bTypingAt: new Date() },
+    });
+    return NextResponse.json({ ok: true });
+  }
+
   const [aId, bId] = convPair(me.id, other.id);
   const conv = await prisma.conversation.findUnique({
     where: { aId_bId: { aId, bId } },
@@ -172,7 +192,6 @@ export async function PATCH(
   if (!conv) return NextResponse.json({ error: "belum ada percakapan" }, { status: 404 });
 
   const isA = me.id === conv.aId;
-  const { action } = await req.json().catch(() => ({}));
 
   if (action === "clear") {
     await prisma.conversation.update({

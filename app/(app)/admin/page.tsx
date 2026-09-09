@@ -22,6 +22,7 @@ function bucketByDay(dates: Date[]) {
 
 export default async function AdminOverview() {
   const since = new Date(Date.now() - 30 * 86400000);
+  const now = Date.now();
   const [
     users,
     banned,
@@ -30,6 +31,9 @@ export default async function AdminOverview() {
     cats,
     openReports,
     online,
+    dau,
+    wau,
+    mau,
     newUsers,
     newPosts,
     recent,
@@ -41,7 +45,16 @@ export default async function AdminOverview() {
     prisma.category.count(),
     prisma.report.count({ where: { status: "OPEN" } }),
     prisma.user.count({
-      where: { lastSeenAt: { gte: new Date(Date.now() - 5 * 60000) } },
+      where: { lastSeenAt: { gte: new Date(now - 5 * 60000) } },
+    }),
+    prisma.user.count({
+      where: { lastSeenAt: { gte: new Date(now - 86400000) } },
+    }),
+    prisma.user.count({
+      where: { lastSeenAt: { gte: new Date(now - 7 * 86400000) } },
+    }),
+    prisma.user.count({
+      where: { lastSeenAt: { gte: new Date(now - 30 * 86400000) } },
     }),
     prisma.user.findMany({
       where: { createdAt: { gte: since } },
@@ -58,9 +71,15 @@ export default async function AdminOverview() {
     }),
   ]);
 
+  const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0;
+
   const stats = [
     ["Pengguna", users],
     ["Online", online],
+    ["DAU", dau],
+    ["WAU", wau],
+    ["MAU", mau],
+    ["Stickiness", `${stickiness}%`],
     ["Diblokir", banned],
     ["Thread", threads],
     ["Post", posts],

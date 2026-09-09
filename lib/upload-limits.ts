@@ -24,6 +24,9 @@ export const ALLOWED_UPLOAD_TYPES = [
   "audio/mpeg",
   "audio/ogg",
   "audio/wav",
+  "audio/webm",
+  "audio/mp4",
+  "audio/aac",
   // dokumen
   "application/pdf",
   "text/plain",

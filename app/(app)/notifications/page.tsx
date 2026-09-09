@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { groupNotifications } from "@/lib/notif-group";
 
 export const metadata = { title: "Notifikasi" };
 export const dynamic = "force-dynamic";
@@ -12,11 +13,22 @@ export const dynamic = "force-dynamic";
 export default async function NotificationsPage() {
   const user = await requireUser("/notifications");
 
-  const items = await prisma.notification.findMany({
+  const raw = await prisma.notification.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 100,
   });
+  const items = groupNotifications(
+    raw.map((n) => ({
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      url: n.url,
+      read: n.read,
+      createdAt: n.createdAt,
+    })),
+  );
 
   // tandai semua terbaca saat halaman dibuka
   await prisma.notification
@@ -46,19 +58,29 @@ export default async function NotificationsPage() {
                 !n.read && "bg-primary/5",
               )}
             >
-              <p className="font-medium">{n.title}</p>
-              {n.body && <p className="text-muted-foreground">{n.body}</p>}
+              <p className="font-medium">
+                {n.title}
+                {n.count > 1 && (
+                  <span className="ml-1 text-muted-foreground">
+                    +{n.count - 1} lainnya
+                  </span>
+                )}
+              </p>
+              {n.body && n.count === 1 && (
+                <p className="text-muted-foreground">{n.body}</p>
+              )}
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {timeAgo(n.createdAt)}
               </p>
             </div>
           );
+          const key = n.ids[0];
           return n.url ? (
-            <Link key={n.id} href={n.url}>
+            <Link key={key} href={n.url}>
               {inner}
             </Link>
           ) : (
-            <div key={n.id}>{inner}</div>
+            <div key={key}>{inner}</div>
           );
         })}
       </Card>

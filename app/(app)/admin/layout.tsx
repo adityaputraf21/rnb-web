@@ -10,13 +10,15 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const me = await requireRole("MODERATOR", "/admin");
-  const openReports = await prisma.report
-    .count({ where: { status: "OPEN" } })
-    .catch(() => 0);
+  const [openReports, openAppeals] = await Promise.all([
+    prisma.report.count({ where: { status: "OPEN" } }).catch(() => 0),
+    prisma.appeal.count({ where: { status: "OPEN" } }).catch(() => 0),
+  ]);
 
   const tabs = [
     { href: "/admin", label: "Ringkasan" },
     { href: "/admin/reports", label: `Laporan${openReports ? ` (${openReports})` : ""}` },
+    { href: "/admin/appeals", label: `Banding${openAppeals ? ` (${openAppeals})` : ""}` },
     { href: "/admin/categories", label: "Kategori" },
     { href: "/admin/users", label: "Pengguna" },
     { href: "/admin/audit", label: "Audit log" },

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { initials } from "@/lib/utils";
 import { ROLE_LABEL, ROLE_BADGE } from "@/lib/tier-style";
+import { ModNotesDialog } from "@/components/admin/mod-notes-dialog";
 
 type Row = {
   id: string;
@@ -112,6 +113,8 @@ export function UsersManager({
               )}
               {r.bannedAt && <Badge variant="destructive">Blokir</Badge>}
               {muted && <Badge variant="secondary">Timeout</Badge>}
+
+              <ModNotesDialog userId={r.id} username={r.username} />
 
               {canActOn(r) && (
                 <DropdownMenu>

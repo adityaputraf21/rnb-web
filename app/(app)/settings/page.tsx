@@ -21,6 +21,7 @@ export default async function SettingsPage() {
         bannerColor: true,
         bannerImage: true,
         image: true,
+        mutedKeywords: true,
         notifyMention: true,
         notifyReply: true,
         notifyReaction: true,
@@ -45,6 +46,7 @@ export default async function SettingsPage() {
           bannerColor: user?.bannerColor ?? "",
           bannerImage: user?.bannerImage ?? "",
           image: user?.image ?? "",
+          mutedKeywords: user?.mutedKeywords ?? "",
         }}
       />
       <PushToggle />

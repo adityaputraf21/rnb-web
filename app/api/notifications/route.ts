@@ -24,15 +24,20 @@ export async function GET() {
   return NextResponse.json({ items, unread });
 }
 
-export async function PATCH() {
+export async function PATCH(req: Request) {
   let user;
   try {
     user = await apiUser();
   } catch (res) {
     return res as Response;
   }
+  const { ids } = await req.json().catch(() => ({}) as { ids?: string[] });
   await prisma.notification.updateMany({
-    where: { userId: user.id, read: false },
+    where: {
+      userId: user.id,
+      read: false,
+      ...(Array.isArray(ids) && ids.length ? { id: { in: ids.slice(0, 100) } } : {}),
+    },
     data: { read: true },
   });
   return NextResponse.json({ ok: true });

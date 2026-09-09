@@ -3,6 +3,7 @@ import { Newspaper } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasRole } from "@/lib/auth-helpers";
 import { blockedIdsFor } from "@/lib/blocks";
+import { mutedKeywordsFor, mutedStatusWhere } from "@/lib/mute";
 import { Button } from "@/components/ui/button";
 import { StatusComposer } from "@/components/feed/status-composer";
 import { FeedList } from "@/components/feed/feed-list";
@@ -31,11 +32,15 @@ export default async function FeedPage({
     authorWhere = { authorId: { in: [...f.map((x) => x.followingId), user.id] } };
   }
   const hidden = user ? await blockedIdsFor(user.id) : new Set<string>();
+  const muted = user
+    ? mutedStatusWhere(await mutedKeywordsFor(user.id))
+    : {};
 
   const rows = await prisma.status.findMany({
     where: {
       deletedAt: null,
       ...authorWhere,
+      ...muted,
       ...(hidden.size && !("authorId" in authorWhere)
         ? { authorId: { notIn: [...hidden] } }
         : {}),

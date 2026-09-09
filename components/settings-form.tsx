@@ -20,6 +20,7 @@ type Form = {
   bannerColor: string;
   bannerImage: string;
   image: string;
+  mutedKeywords: string;
 };
 
 export function SettingsForm({ initial }: { initial: Form }) {
@@ -252,6 +253,18 @@ export function SettingsForm({ initial }: { initial: Form }) {
           maxLength={500}
           placeholder="Markdown didukung."
         />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="mutedKeywords">Kata yang dibisukan</Label>
+        <Textarea
+          id="mutedKeywords"
+          value={form.mutedKeywords}
+          onChange={(e) => set("mutedKeywords")(e.target.value)}
+          placeholder="pisahkan dengan koma, mis: spoiler, promosi"
+        />
+        <p className="text-xs text-muted-foreground">
+          Status yang mengandung kata-kata ini disembunyikan dari feed kamu.
+        </p>
       </div>
       <Button type="submit" disabled={busy || !!uploading}>
         {busy ? "Menyimpan…" : "Simpan"}

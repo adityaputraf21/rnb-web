@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pin, Lock, Plus, MessageSquare } from "lucide-react";
+import { Pin, Lock, Plus, MessageSquare, CheckCircle2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { Button } from "@/components/ui/button";
@@ -33,18 +33,25 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: Promise<{ category: string }>;
-  searchParams: Promise<{ sort?: string; page?: string }>;
+  searchParams: Promise<{ sort?: string; page?: string; filter?: string }>;
 }) {
   const { category: slug } = await params;
-  const { sort = "latest", page = "1" } = await searchParams;
+  const { sort = "latest", page = "1", filter } = await searchParams;
   const sortKey = (sort in SORTS ? sort : "latest") as keyof typeof SORTS;
   const pageNum = Math.max(1, Number(page) || 1);
+  const solvedOnly = filter === "solved";
+  const unsolvedOnly = filter === "unsolved";
 
   const category = await prisma.category.findUnique({ where: { slug } });
   if (!category) notFound();
 
   const user = await getCurrentUser();
-  const where = { categoryId: category.id, deletedAt: null };
+  const where = {
+    categoryId: category.id,
+    deletedAt: null,
+    ...(solvedOnly ? { bestPostId: { not: null } } : {}),
+    ...(unsolvedOnly ? { bestPostId: null } : {}),
+  };
 
   const [threads, total] = await Promise.all([
     prisma.thread.findMany({
@@ -102,7 +109,7 @@ export default async function CategoryPage({
         )}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex flex-wrap gap-1">
         {Object.entries(SORTS).map(([key, v]) => (
           <Button
             key={key}
@@ -110,7 +117,30 @@ export default async function CategoryPage({
             size="sm"
             asChild
           >
-            <Link href={`/forum/${category.slug}?sort=${key}`}>{v.label}</Link>
+            <Link
+              href={`/forum/${category.slug}?sort=${key}${filter ? `&filter=${filter}` : ""}`}
+            >
+              {v.label}
+            </Link>
+          </Button>
+        ))}
+        <span className="mx-1 w-px bg-border" />
+        {[
+          ["", "Semua"],
+          ["solved", "Terjawab"],
+          ["unsolved", "Belum terjawab"],
+        ].map(([key, label]) => (
+          <Button
+            key={label}
+            variant={(filter ?? "") === key ? "secondary" : "ghost"}
+            size="sm"
+            asChild
+          >
+            <Link
+              href={`/forum/${category.slug}?sort=${sortKey}${key ? `&filter=${key}` : ""}`}
+            >
+              {label}
+            </Link>
           </Button>
         ))}
       </div>
@@ -137,6 +167,9 @@ export default async function CategoryPage({
               <p className="flex items-center gap-1.5 font-medium">
                 {t.pinned && <Pin className="h-3.5 w-3.5 text-primary" />}
                 {t.locked && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+                {t.bestPostId && (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500" />
+                )}
                 <span className="truncate">{t.title}</span>
               </p>
               <p className="text-xs text-muted-foreground">
@@ -166,7 +199,9 @@ export default async function CategoryPage({
               size="sm"
               asChild
             >
-              <Link href={`/forum/${category.slug}?sort=${sortKey}&page=${p}`}>
+              <Link
+                href={`/forum/${category.slug}?sort=${sortKey}&page=${p}${filter ? `&filter=${filter}` : ""}`}
+              >
                 {p}
               </Link>
             </Button>

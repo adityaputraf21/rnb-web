@@ -37,6 +37,7 @@ export async function GET(
     id: s.id,
     mediaUrl: s.mediaUrl,
     mediaType: s.mediaType,
+      bgColor: s.bgColor,
     caption: s.caption,
     createdAt: s.createdAt.toISOString(),
     viewed: s.views.length > 0,

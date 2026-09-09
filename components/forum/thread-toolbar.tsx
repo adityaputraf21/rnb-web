@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bookmark, BookmarkCheck, Bell, BellOff, Link2 } from "lucide-react";
+import { Bookmark, BookmarkCheck, Bell, BellOff, Link2, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ReportButton } from "@/components/forum/report-button";
@@ -11,15 +11,41 @@ export function ThreadToolbar({
   initialBookmarked,
   initialSubscribed,
   loggedIn,
+  canPinProfile = false,
+  initialPinnedToProfile = false,
 }: {
   threadId: string;
   initialBookmarked: boolean;
   initialSubscribed: boolean;
   loggedIn: boolean;
+  canPinProfile?: boolean;
+  initialPinnedToProfile?: boolean;
 }) {
   const [bookmarked, setBookmarked] = React.useState(initialBookmarked);
   const [subscribed, setSubscribed] = React.useState(initialSubscribed);
+  const [pinnedProfile, setPinnedProfile] = React.useState(
+    initialPinnedToProfile,
+  );
   const [busy, setBusy] = React.useState(false);
+
+  async function togglePinProfile() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/threads/${threadId}/pin-profile`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error();
+      setPinnedProfile(data.pinned);
+      toast.success(
+        data.pinned ? "Disematkan di profil" : "Lepas sematan dari profil",
+      );
+    } catch {
+      toast.error("Gagal");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function toggleBookmark() {
     if (!loggedIn) return toast.error("Masuk dulu");
@@ -77,6 +103,17 @@ export function ThreadToolbar({
       <Button variant="ghost" size="sm" onClick={copyLink}>
         <Link2 /> Salin link
       </Button>
+      {canPinProfile && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={togglePinProfile}
+          disabled={busy}
+        >
+          <Pin className={pinnedProfile ? "text-primary" : ""} />
+          {pinnedProfile ? "Tersemat di profil" : "Sematkan di profil"}
+        </Button>
+      )}
       {loggedIn && <ReportButton targetType="thread" targetId={threadId} />}
     </div>
   );

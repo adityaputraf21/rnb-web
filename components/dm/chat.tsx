@@ -17,6 +17,8 @@ import {
   BellOff,
   Bell,
   SmilePlus,
+  Mic,
+  Square,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,8 +69,26 @@ export function Chat({
   const [editId, setEditId] = React.useState<string | null>(null);
   const [editText, setEditText] = React.useState("");
   const [reactFor, setReactFor] = React.useState<string | null>(null);
+  const [otherTyping, setOtherTyping] = React.useState(false);
+  const [recording, setRecording] = React.useState(false);
+  const [recSecs, setRecSecs] = React.useState(0);
   const endRef = React.useRef<HTMLDivElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const lastTypingRef = React.useRef(0);
+  const recRef = React.useRef<MediaRecorder | null>(null);
+  const chunksRef = React.useRef<Blob[]>([]);
+  const recTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const pingTyping = React.useCallback(() => {
+    const now = Date.now();
+    if (now - lastTypingRef.current < 3000) return;
+    lastTypingRef.current = now;
+    fetch(`/api/messages/${other.username}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "typing" }),
+    }).catch(() => {});
+  }, [other.username]);
 
   async function convAction(action: string) {
     const res = await fetch(`/api/messages/${other.username}`, {
@@ -146,6 +166,7 @@ export function Chat({
         });
         if (res.ok) {
           const data = await res.json();
+          setOtherTyping(!!data.otherTyping);
           setMessages((prev) => {
             if (data.messages.length !== prev.length) {
               requestAnimationFrame(scrollDown);
@@ -197,6 +218,66 @@ export function Chat({
     } finally {
       setUploading(false);
     }
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/mp4";
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size) chunksRef.current.push(e.data);
+      };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (recTimerRef.current) clearInterval(recTimerRef.current);
+        setRecording(false);
+        const blob = new Blob(chunksRef.current, { type: mime });
+        if (blob.size < 800) return;
+        const file = new File([blob], `voice-${Date.now()}.${mime.includes("webm") ? "webm" : "mp4"}`, {
+          type: mime,
+        });
+        setUploading(true);
+        try {
+          const up = await uploadFile(file, { prefix: "dm" });
+          await send("", { url: up.url, type: "audio" });
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Gagal kirim voice");
+        } finally {
+          setUploading(false);
+        }
+      };
+      recRef.current = rec;
+      rec.start();
+      setRecording(true);
+      setRecSecs(0);
+      recTimerRef.current = setInterval(() => {
+        setRecSecs((s) => {
+          if (s >= 120) stopRecording();
+          return s + 1;
+        });
+      }, 1000);
+    } catch {
+      toast.error("Tidak bisa mengakses mikrofon");
+    }
+  }
+
+  function stopRecording() {
+    recRef.current?.state === "recording" && recRef.current.stop();
+  }
+
+  function cancelRecording() {
+    if (recTimerRef.current) clearInterval(recTimerRef.current);
+    chunksRef.current = [];
+    const rec = recRef.current;
+    if (rec && rec.state === "recording") {
+      rec.onstop = () => rec.stream.getTracks().forEach((t) => t.stop());
+      rec.stop();
+    }
+    setRecording(false);
   }
 
   return (
@@ -320,6 +401,8 @@ export function Chat({
                   />
                 ) : m.mediaType === "video" ? (
                   <video src={m.mediaUrl} controls className="mb-1 max-h-64 rounded-lg" />
+                ) : m.mediaType === "audio" ? (
+                  <audio src={m.mediaUrl} controls className="mb-1 h-10 w-56 max-w-full" />
                 ) : (
                   <a
                     href={m.mediaUrl}
@@ -397,45 +480,89 @@ export function Chat({
         <div ref={endRef} />
       </div>
 
+      {otherTyping && (
+        <p className="px-4 pb-1 text-xs italic text-muted-foreground">
+          {other.name ?? other.username} sedang mengetik…
+        </p>
+      )}
+
       {canMessage ? (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send(text);
-          }}
-          className="flex items-center gap-2 border-t p-2"
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-          >
-            {uploading ? <Loader2 className="animate-spin" /> : <Paperclip />}
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            className="hidden"
-            accept="image/*,video/*,application/pdf,.zip"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onFile(f);
-              e.target.value = "";
+        recording ? (
+          <div className="flex items-center gap-3 border-t p-2">
+            <span className="flex items-center gap-2 text-sm text-destructive">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-destructive" />
+              Merekam {Math.floor(recSecs / 60)}:
+              {String(recSecs % 60).padStart(2, "0")}
+            </span>
+            <div className="ml-auto flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={cancelRecording}
+              >
+                Batal
+              </Button>
+              <Button type="button" size="sm" onClick={stopRecording}>
+                <Square className="h-4 w-4" /> Kirim
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send(text);
             }}
-          />
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Ketik pesan…"
-            maxLength={4000}
-            className="h-9 flex-1 rounded-full border border-input bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <Button type="submit" size="icon" disabled={sending || !text.trim()}>
-            <Send />
-          </Button>
-        </form>
+            className="flex items-center gap-2 border-t p-2"
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              {uploading ? <Loader2 className="animate-spin" /> : <Paperclip />}
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              accept="image/*,video/*,audio/*,application/pdf,.zip"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onFile(f);
+                e.target.value = "";
+              }}
+            />
+            <input
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                pingTyping();
+              }}
+              placeholder="Ketik pesan…"
+              maxLength={4000}
+              className="h-9 flex-1 rounded-full border border-input bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {text.trim() ? (
+              <Button type="submit" size="icon" disabled={sending}>
+                <Send />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                disabled={uploading}
+                onClick={startRecording}
+              >
+                <Mic />
+              </Button>
+            )}
+          </form>
+        )
       ) : (
         <p className="border-t p-3 text-center text-sm text-muted-foreground">
           Kamu tidak bisa mengirim pesan ke pengguna ini.
