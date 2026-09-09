@@ -65,7 +65,7 @@ export function GifPicker({
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari GIF di Tenor…"
+              placeholder="Cari GIF…"
               className="mb-2 h-8"
             />
             <div className="grid max-h-72 grid-cols-2 gap-1 overflow-y-auto">
@@ -101,7 +101,7 @@ export function GifPicker({
               )}
             </div>
             <p className="mt-1 text-right text-[10px] text-muted-foreground">
-              via Tenor
+              Powered by GIPHY
             </p>
           </>
         )}
