@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
-import { apiUser } from "@/lib/auth-helpers";
+import { apiWriter } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { awardPoints, POINTS } from "@/lib/points";
 import { notify, notifyMentions } from "@/lib/notifications";
+import { subscribe, notifySubscribers } from "@/lib/subscriptions";
+import { checkAchievements } from "@/lib/achievements";
+import { assertPostRate } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   let user;
   try {
-    user = await apiUser();
+    user = await apiWriter();
+    await assertPostRate(user.id);
   } catch (res) {
     return res as Response;
   }
@@ -30,18 +34,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "thread terkunci" }, { status: 403 });
   }
 
-  const now = new Date();
   const post = await prisma.post.create({
     data: { threadId, authorId: user.id, body: body.trim() },
   });
   await prisma.thread.update({
     where: { id: threadId },
-    data: { lastPostAt: now },
+    data: { lastPostAt: new Date() },
   });
 
+  await subscribe(user.id, threadId);
   await awardPoints(user.id, POINTS.POST);
+  await checkAchievements(user.id);
 
   const url = `/forum/${thread.category.slug}/${thread.slug}#post-${post.id}`;
+  const notified: string[] = [];
 
   if (thread.authorId && thread.authorId !== user.id) {
     await notify({
@@ -52,7 +58,16 @@ export async function POST(req: Request) {
       body: body.trim().slice(0, 140),
       url,
     });
+    notified.push(thread.authorId);
   }
+  await notifySubscribers({
+    threadId,
+    threadTitle: thread.title,
+    actorId: user.id,
+    actorName: user.name ?? user.username,
+    url,
+    excludeUserIds: notified,
+  });
   await notifyMentions({
     body,
     actorId: user.id,

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PostCard, type PostView } from "@/components/forum/post-card";
 import { ReplyForm } from "@/components/forum/reply-form";
 import { ThreadModActions } from "@/components/forum/thread-mod-actions";
+import { ThreadToolbar } from "@/components/forum/thread-toolbar";
 import { timeAgo } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,25 @@ export default async function ThreadPage({
 
   const user = await getCurrentUser();
   const canModerate = hasRole(user, "MODERATOR");
+
+  const [bookmark, subscription, allCategories] = await Promise.all([
+    user
+      ? prisma.bookmark.findUnique({
+          where: { userId_threadId: { userId: user.id, threadId: thread.id } },
+        })
+      : null,
+    user
+      ? prisma.threadSubscription.findUnique({
+          where: { userId_threadId: { userId: user.id, threadId: thread.id } },
+        })
+      : null,
+    canModerate
+      ? prisma.category.findMany({
+          orderBy: { position: "asc" },
+          select: { id: true, name: true },
+        })
+      : [],
+  ]);
 
   // hitung view (tidak menunggu)
   prisma.thread
@@ -112,7 +132,8 @@ export default async function ThreadPage({
     };
   });
 
-  const canReply = !!user && (!thread.locked || canModerate);
+  const muted = !!user?.mutedUntil && new Date(user.mutedUntil) > new Date();
+  const canReply = !!user && !muted && (!thread.locked || canModerate);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -138,6 +159,8 @@ export default async function ThreadPage({
           <ThreadModActions
             threadId={thread.id}
             categorySlug={thread.category.slug}
+            currentCategoryId={thread.categoryId}
+            categories={allCategories}
             pinned={thread.pinned}
             locked={thread.locked}
             canModerate={canModerate}
@@ -149,6 +172,13 @@ export default async function ThreadPage({
           {timeAgo(thread.createdAt)}
         </p>
       </div>
+
+      <ThreadToolbar
+        threadId={thread.id}
+        initialBookmarked={!!bookmark}
+        initialSubscribed={!!subscription}
+        loggedIn={!!user}
+      />
 
       <div className="space-y-3">
         {views.map((v) => (
@@ -185,6 +215,10 @@ export default async function ThreadPage({
         <div className="pt-2">
           {canReply ? (
             <ReplyForm threadId={thread.id} />
+          ) : muted ? (
+            <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+              Kamu sedang di-timeout dan tidak bisa membalas untuk sementara.
+            </p>
           ) : thread.locked ? (
             <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
               <Lock className="mr-1 inline h-4 w-4" />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { SiteHeader } from "@/components/site-header";
+import { SiteBanner } from "@/components/site-banner";
 
 export const metadata: Metadata = {
   title: {
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <body className="min-h-screen">
         <Providers>
+          <SiteBanner />
           <SiteHeader />
           <main className="container py-8">{children}</main>
           <footer className="border-t py-8 text-center text-sm text-muted-foreground">

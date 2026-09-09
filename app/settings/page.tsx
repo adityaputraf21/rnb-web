@@ -8,7 +8,13 @@ export default async function SettingsPage() {
   const session = await requireUser("/settings");
   const user = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { name: true, username: true, bio: true },
+    select: {
+      name: true,
+      username: true,
+      bio: true,
+      website: true,
+      bannerColor: true,
+    },
   });
 
   return (
@@ -19,6 +25,8 @@ export default async function SettingsPage() {
           name: user?.name ?? "",
           username: user?.username ?? "",
           bio: user?.bio ?? "",
+          website: user?.website ?? "",
+          bannerColor: user?.bannerColor ?? "",
         }}
       />
     </div>

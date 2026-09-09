@@ -1,26 +1,38 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-
-const TABS = [
-  { href: "/admin", label: "Ringkasan" },
-  { href: "/admin/categories", label: "Kategori" },
-  { href: "/admin/users", label: "Pengguna" },
-  { href: "/admin/audit", label: "Audit log" },
-];
+import { Badge } from "@/components/ui/badge";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireRole("MODERATOR", "/admin");
+  const me = await requireRole("MODERATOR", "/admin");
+  const openReports = await prisma.report
+    .count({ where: { status: "OPEN" } })
+    .catch(() => 0);
+
+  const tabs = [
+    { href: "/admin", label: "Ringkasan" },
+    { href: "/admin/reports", label: `Laporan${openReports ? ` (${openReports})` : ""}` },
+    { href: "/admin/categories", label: "Kategori" },
+    { href: "/admin/users", label: "Pengguna" },
+    { href: "/admin/audit", label: "Audit log" },
+    ...(me.role === "OWNER"
+      ? [{ href: "/admin/site", label: "Setelan Situs" }]
+      : []),
+  ];
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <h1 className="text-2xl font-bold">Panel Moderasi</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-bold">Panel Moderasi</h1>
+        <Badge variant="secondary">{me.role}</Badge>
+      </div>
       <nav className="flex flex-wrap gap-1 border-b pb-2">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Button key={t.href} variant="ghost" size="sm" asChild>
             <Link href={t.href}>{t.label}</Link>
           </Button>

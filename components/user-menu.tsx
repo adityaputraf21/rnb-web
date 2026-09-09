@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { LogOut, Settings, Shield, User as UserIcon, Trophy } from "lucide-react";
+import { LogOut, Settings, Shield, User as UserIcon, Trophy, Bookmark } from "lucide-react";
 import type { Role } from "@prisma/client";
 import {
   DropdownMenu,
@@ -49,6 +49,11 @@ export function UserMenu({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
+          <Link href="/bookmarks">
+            <Bookmark /> Bookmark
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/leaderboard">
             <Trophy /> Leaderboard
           </Link>
@@ -58,7 +63,7 @@ export function UserMenu({
             <Settings /> Pengaturan
           </Link>
         </DropdownMenuItem>
-        {(user.role === "ADMIN" || user.role === "MODERATOR") && (
+        {user.role !== "USER" && (
           <DropdownMenuItem asChild>
             <Link href="/admin">
               <Shield /> Panel Moderasi

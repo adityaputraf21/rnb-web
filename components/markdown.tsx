@@ -1,12 +1,15 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { cn } from "@/lib/utils";
 
 const schema = {
   ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames ?? []), "span"],
   attributes: {
     ...defaultSchema.attributes,
+    span: [["className", "spoiler"]],
     img: [
       ...(defaultSchema.attributes?.img ?? []),
       "src",
@@ -24,12 +27,14 @@ const schema = {
   },
 };
 
-/** Ubah @username jadi link ke profil sebelum render. */
-function linkifyMentions(md: string): string {
-  return md.replace(
-    /(^|[^\w`/])@([a-z0-9][a-z0-9-]{1,23})/gi,
-    (_m, pre, name) => `${pre}[@${name}](/u/${name.toLowerCase()})`,
-  );
+/** @username -> link profil; ||teks|| -> spoiler. */
+function preprocess(md: string): string {
+  return md
+    .replace(
+      /(^|[^\w`/])@([a-z0-9][a-z0-9-]{1,23})/gi,
+      (_m, pre, name) => `${pre}[@${name}](/u/${name.toLowerCase()})`,
+    )
+    .replace(/\|\|([^\n|]+)\|\|/g, (_m, t) => `<span class="spoiler">${t}</span>`);
 }
 
 export function Markdown({
@@ -48,7 +53,7 @@ export function Markdown({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[[rehypeSanitize, schema]]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]}
         components={{
           a: ({ href, children, ...props }) => {
             const internal = href?.startsWith("/");
@@ -70,7 +75,7 @@ export function Markdown({
             ) : null,
         }}
       >
-        {linkifyMentions(children)}
+        {preprocess(children)}
       </ReactMarkdown>
     </div>
   );

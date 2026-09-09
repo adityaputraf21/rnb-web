@@ -69,3 +69,18 @@
 .prose img {
   @apply rounded-lg border;
 }
+
+/* Spoiler: blur sampai di-hover / tap */
+.spoiler {
+  background: hsl(var(--foreground) / 0.15);
+  border-radius: 0.25rem;
+  padding: 0 0.15rem;
+  filter: blur(4px);
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.spoiler:hover,
+.spoiler:focus,
+.spoiler:active {
+  filter: none;
+}

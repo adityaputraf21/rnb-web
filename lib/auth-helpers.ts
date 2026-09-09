@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import type { Role } from "@prisma/client";
 import { auth } from "@/auth";
 
-const RANK: Record<Role, number> = { USER: 0, MODERATOR: 1, ADMIN: 2 };
+export const RANK: Record<Role, number> = {
+  USER: 0,
+  MODERATOR: 1,
+  ADMIN: 2,
+  OWNER: 3,
+};
 
 export async function getCurrentUser() {
   const session = await auth();
@@ -31,6 +36,12 @@ export function hasRole(
   return RANK[user.role] >= RANK[role];
 }
 
+/** true kalau user sedang di-mute (timeout) dan belum kedaluwarsa. */
+export function isMuted(user: { mutedUntil?: string | Date | null } | null) {
+  if (!user?.mutedUntil) return false;
+  return new Date(user.mutedUntil) > new Date();
+}
+
 /** Untuk route handler: lempar Response 401/403 alih-alih redirect. */
 export async function apiUser() {
   const user = await getCurrentUser();
@@ -39,8 +50,21 @@ export async function apiUser() {
   return user;
 }
 
+/** Wajib login + tidak sedang di-mute (untuk aksi menulis). */
+export async function apiWriter() {
+  const user = await apiUser();
+  if (isMuted(user)) {
+    throw new Response(
+      JSON.stringify({ error: "Kamu sedang di-timeout, tidak bisa memposting." }),
+      { status: 403, headers: { "content-type": "application/json" } },
+    );
+  }
+  return user;
+}
+
 export async function apiRole(role: Role) {
   const user = await apiUser();
-  if (RANK[user.role] < RANK[role]) throw new Response("Forbidden", { status: 403 });
+  if (RANK[user.role] < RANK[role])
+    throw new Response("Forbidden", { status: 403 });
   return user;
 }

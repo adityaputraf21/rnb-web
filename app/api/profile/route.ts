@@ -13,11 +13,19 @@ export async function PATCH(req: Request) {
     return res as Response;
   }
 
-  const { name, username, bio } = await req.json().catch(() => ({}));
+  const { name, username, bio, website, bannerColor } = await req
+    .json()
+    .catch(() => ({}));
   const data: Record<string, string | null> = {};
 
   if (typeof name === "string") data.name = name.trim().slice(0, 60) || null;
   if (typeof bio === "string") data.bio = bio.trim().slice(0, 500) || null;
+  if (typeof website === "string") {
+    const w = website.trim().slice(0, 120);
+    data.website = w && /^https?:\/\//.test(w) ? w : w ? `https://${w}` : null;
+  }
+  if (typeof bannerColor === "string")
+    data.bannerColor = /^#[0-9a-f]{6}$/i.test(bannerColor) ? bannerColor : null;
 
   if (typeof username === "string") {
     const slug = toUsernameSlug(username);
@@ -42,7 +50,13 @@ export async function PATCH(req: Request) {
   const updated = await prisma.user.update({
     where: { id: user.id },
     data,
-    select: { name: true, username: true, bio: true },
+    select: {
+      name: true,
+      username: true,
+      bio: true,
+      website: true,
+      bannerColor: true,
+    },
   });
   return NextResponse.json(updated);
 }

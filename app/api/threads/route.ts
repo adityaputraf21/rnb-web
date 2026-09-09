@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
-import { apiUser } from "@/lib/auth-helpers";
+import { apiWriter } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { threadSlug } from "@/lib/slug";
 import { awardPoints, POINTS } from "@/lib/points";
 import { notifyMentions } from "@/lib/notifications";
+import { subscribe } from "@/lib/subscriptions";
+import { checkAchievements } from "@/lib/achievements";
+import { assertPostRate } from "@/lib/ratelimit";
+import { getSiteConfig } from "@/lib/site-config";
 import { sendDiscordWebhook, forumThreadEmbed } from "@/lib/discord";
 
 export const runtime = "nodejs";
@@ -11,9 +15,15 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   let user;
   try {
-    user = await apiUser();
+    user = await apiWriter();
+    await assertPostRate(user.id);
   } catch (res) {
     return res as Response;
+  }
+
+  const cfg = await getSiteConfig();
+  if (cfg.maintenanceMode && user.role === "USER") {
+    return NextResponse.json({ error: "situs sedang maintenance" }, { status: 503 });
   }
 
   const { categoryId, title, body } = await req.json().catch(() => ({}));
@@ -45,14 +55,13 @@ export async function POST(req: Request) {
       categoryId,
       authorId: user.id,
       lastPostAt: new Date(),
-      posts: {
-        create: { body: body.trim(), authorId: user.id },
-      },
+      posts: { create: { body: body.trim(), authorId: user.id } },
     },
-    include: { posts: true },
   });
 
+  await subscribe(user.id, thread.id);
   await awardPoints(user.id, POINTS.THREAD);
+  await checkAchievements(user.id);
 
   const url = `/forum/${category.slug}/${thread.slug}`;
   await notifyMentions({

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Quote } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +17,22 @@ import {
 import { Markdown } from "@/components/markdown";
 import { MarkdownEditor } from "@/components/forum/markdown-editor";
 import { ReactionBar } from "@/components/forum/reaction-bar";
+import { ReportButton } from "@/components/forum/report-button";
 import { initials } from "@/lib/utils";
-import { tierClass, ROLE_LABEL } from "@/lib/tier-style";
+import { tierClass, ROLE_LABEL, ROLE_BADGE } from "@/lib/tier-style";
+
+export function quotePost(author: string, body: string) {
+  const quoted = body
+    .split("\n")
+    .map((l) => `> ${l}`)
+    .join("\n");
+  window.dispatchEvent(
+    new CustomEvent("rnb:quote", {
+      detail: `**@${author}** menulis:\n${quoted}\n\n`,
+    }),
+  );
+  document.getElementById("reply-anchor")?.scrollIntoView({ behavior: "smooth" });
+}
 
 export type PostView = {
   id: string;
@@ -125,7 +139,9 @@ export function PostCard({
             </Link>
             {post.isOp && <Badge variant="secondary">OP</Badge>}
             {post.author && post.author.role !== "USER" && (
-              <Badge>{ROLE_LABEL[post.author.role]}</Badge>
+              <Badge className={ROLE_BADGE[post.author.role]}>
+                {ROLE_LABEL[post.author.role]}
+              </Badge>
             )}
             {post.author && (
               <span
@@ -189,13 +205,33 @@ export function PostCard({
         <Markdown>{post.body}</Markdown>
       )}
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <ReactionBar
           postId={post.id}
           initialCounts={post.reactionCounts}
           initialMine={post.myReactions}
           canReact={!!currentUserId}
         />
+        {currentUserId && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-2 text-xs text-muted-foreground"
+              onClick={() =>
+                quotePost(
+                  post.author?.username ?? "pengguna",
+                  post.body,
+                )
+              }
+            >
+              <Quote className="h-3 w-3" /> Kutip
+            </Button>
+            {!post.authorIsMe && (
+              <ReportButton targetType="post" targetId={post.id} />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

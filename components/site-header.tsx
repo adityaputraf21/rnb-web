@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { MessagesSquare } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import { getSiteConfig } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { SignInButton } from "@/components/sign-in-button";
+import { SearchBox } from "@/components/search-box";
 
 const NAV = [
   { href: "/forum", label: "Forum" },
@@ -15,14 +17,14 @@ const NAV = [
 ];
 
 export async function SiteHeader() {
-  const user = await getCurrentUser();
+  const [user, cfg] = await Promise.all([getCurrentUser(), getSiteConfig()]);
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-      <div className="container flex h-14 items-center gap-6">
+      <div className="container flex h-14 items-center gap-4">
         <Link href="/" className="flex items-center gap-2 font-bold">
           <MessagesSquare className="h-5 w-5 text-primary" />
-          RnB
+          {cfg.siteName}
         </Link>
         <nav className="hidden items-center gap-1 sm:flex">
           {NAV.map((n) => (
@@ -32,6 +34,7 @@ export async function SiteHeader() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1">
+          <SearchBox />
           <ThemeToggle />
           {user ? (
             <>

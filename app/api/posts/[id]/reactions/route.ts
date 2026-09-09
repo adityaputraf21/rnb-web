@@ -3,6 +3,7 @@ import { apiUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { awardPoints, POINTS } from "@/lib/points";
 import { notify } from "@/lib/notifications";
+import { checkAchievements } from "@/lib/achievements";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,7 @@ export async function POST(
     active = true;
     if (post.authorId && post.authorId !== user.id) {
       await awardPoints(post.authorId, POINTS.REACTION_RECEIVED);
+      await checkAchievements(post.authorId);
       await notify({
         userId: post.authorId,
         actorId: user.id,

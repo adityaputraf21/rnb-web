@@ -18,7 +18,7 @@ export default async function AdminUsersPage() {
       points: true,
       tier: true,
       bannedAt: true,
-      banReason: true,
+      mutedUntil: true,
     },
   });
 
@@ -27,8 +27,9 @@ export default async function AdminUsersPage() {
       initial={users.map((u) => ({
         ...u,
         bannedAt: u.bannedAt?.toISOString() ?? null,
+        mutedUntil: u.mutedUntil?.toISOString() ?? null,
       }))}
-      isAdmin={me.role === "ADMIN"}
+      myRole={me.role}
       meId={me.id}
     />
   );

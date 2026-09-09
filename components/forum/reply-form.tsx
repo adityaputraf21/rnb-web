@@ -11,6 +11,15 @@ export function ReplyForm({ threadId }: { threadId: string }) {
   const [body, setBody] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
+  React.useEffect(() => {
+    function onQuote(e: Event) {
+      const detail = (e as CustomEvent<string>).detail;
+      setBody((prev) => (prev ? `${prev}\n${detail}` : detail));
+    }
+    window.addEventListener("rnb:quote", onQuote);
+    return () => window.removeEventListener("rnb:quote", onQuote);
+  }, []);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (body.trim().length < 2) return toast.error("Balasan kosong");
@@ -34,7 +43,7 @@ export function ReplyForm({ threadId }: { threadId: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-2">
+    <form onSubmit={submit} className="space-y-2" id="reply-anchor">
       <h3 className="text-sm font-semibold">Balas</h3>
       <MarkdownEditor value={body} onChange={setBody} minHeight={120} />
       <Button type="submit" disabled={busy}>

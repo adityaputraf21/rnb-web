@@ -21,6 +21,7 @@ export const DISCORD_COLORS = {
   event: 0x57f287, // hijau         -> event baru
   leaderboard: 0xfee75c, // kuning  -> user naik tier / rank
   announcement: 0xeb459e, // pink   -> pengumuman baru
+  modlog: 0xed4245, // merah        -> aksi moderasi
 } as const;
 
 export type DiscordCategory = keyof typeof DISCORD_COLORS;
@@ -34,6 +35,7 @@ const WEBHOOK_ENV: Record<DiscordCategory, string> = {
   event: "DISCORD_WEBHOOK_EVENT",
   leaderboard: "DISCORD_WEBHOOK_LEADERBOARD",
   announcement: "DISCORD_WEBHOOK_ANNOUNCEMENT",
+  modlog: "DISCORD_WEBHOOK_MODLOG",
 };
 
 /* -------------------------------------------------------------------------- */

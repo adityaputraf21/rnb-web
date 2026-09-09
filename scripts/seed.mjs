@@ -32,10 +32,17 @@ for (const c of CATEGORIES) {
   console.log("kategori:", c.slug);
 }
 
-const admin = await prisma.user.findFirst({ where: { email: ADMIN_EMAIL } });
-if (admin) {
-  await prisma.user.update({ where: { id: admin.id }, data: { role: "ADMIN" } });
-  console.log(`ADMIN: ${admin.username} (${ADMIN_EMAIL})`);
+await prisma.siteConfig.upsert({
+  where: { id: "singleton" },
+  update: {},
+  create: { id: "singleton" },
+});
+console.log("site config OK");
+
+const owner = await prisma.user.findFirst({ where: { email: ADMIN_EMAIL } });
+if (owner) {
+  await prisma.user.update({ where: { id: owner.id }, data: { role: "OWNER" } });
+  console.log(`OWNER: ${owner.username} (${ADMIN_EMAIL})`);
 } else {
   console.log(
     `Belum ada user ${ADMIN_EMAIL}. Login dulu lewat Discord, lalu jalankan ulang script ini.`,

@@ -14,6 +14,14 @@ function ForumAdapter(): Adapter {
   return {
     ...base,
     async createUser(user) {
+      // Hormati toggle "registrasi ditutup" dari site settings.
+      const cfg = await prisma.siteConfig
+        .findUnique({ where: { id: "singleton" } })
+        .catch(() => null);
+      if (cfg && !cfg.registrationOpen) {
+        throw new Error("Pendaftaran sedang ditutup.");
+      }
+
       const seed =
         (user as { username?: string }).username ||
         user.name ||
@@ -77,6 +85,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           points: true,
           tier: true,
           bannedAt: true,
+          mutedUntil: true,
         },
       });
       session.user.id = user.id;
@@ -85,6 +94,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.points = dbUser?.points ?? 0;
       session.user.tier = dbUser?.tier ?? "Bronze";
       session.user.banned = !!dbUser?.bannedAt;
+      session.user.mutedUntil = dbUser?.mutedUntil?.toISOString() ?? null;
+
+      // presence: catat aktivitas terakhir (maks 1x / 5 menit)
+      void prisma.user
+        .updateMany({
+          where: {
+            id: user.id,
+            OR: [
+              { lastSeenAt: null },
+              { lastSeenAt: { lt: new Date(Date.now() - 5 * 60_000) } },
+            ],
+          },
+          data: { lastSeenAt: new Date() },
+        })
+        .catch(() => {});
+
       return session;
     },
   },

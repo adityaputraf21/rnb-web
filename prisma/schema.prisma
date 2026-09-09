@@ -16,6 +16,7 @@ enum Role {
   USER
   MODERATOR
   ADMIN
+  OWNER
 }
 
 model User {
@@ -26,17 +27,22 @@ model User {
   image         String?
 
   // Profil forum
-  username  String  @unique
-  bio       String?
-  discordId String? @unique
-  role      Role    @default(USER)
-  points    Int     @default(0)
-  tier      String  @default("Bronze")
-  bannedAt  DateTime?
-  banReason String?
+  username    String  @unique
+  bio         String?
+  website     String?
+  bannerColor String?
+  discordId   String? @unique
+  role        Role    @default(USER)
+  points      Int     @default(0)
+  tier        String  @default("Bronze")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  bannedAt   DateTime?
+  banReason  String?
+  mutedUntil DateTime?
+
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   accounts      Account[]
   sessions      Session[]
@@ -46,12 +52,18 @@ model User {
   attachments   Attachment[]
   announcements Announcement[]
   events        Event[]
+  bookmarks     Bookmark[]
+  subscriptions ThreadSubscription[]
+  achievements  UserAchievement[]
 
-  notifications     Notification[] @relation("recipient")
+  notifications      Notification[] @relation("recipient")
   actedNotifications Notification[] @relation("actor")
-  auditLogs         AuditLog[]     @relation("moderator")
+  auditLogs          AuditLog[]     @relation("moderator")
+  reportsMade        Report[]       @relation("reporter")
+  reportsResolved    Report[]       @relation("resolver")
 
   @@index([points])
+  @@index([lastSeenAt])
 }
 
 model Account {
@@ -91,6 +103,21 @@ model VerificationToken {
 }
 
 /* ========================================================================== */
+/*  Site config (singleton, id = "singleton")                                  */
+/* ========================================================================== */
+
+model SiteConfig {
+  id                 String  @id @default("singleton")
+  siteName           String  @default("RnB")
+  tagline            String  @default("Rise Never Break")
+  bannerText         String?
+  bannerVariant      String  @default("info") // info | warning | success
+  registrationOpen   Boolean @default(true)
+  maintenanceMode    Boolean @default(false)
+  updatedAt          DateTime @updatedAt
+}
+
+/* ========================================================================== */
 /*  Forum                                                                      */
 /* ========================================================================== */
 
@@ -122,9 +149,11 @@ model Thread {
   lastPostAt DateTime @default(now())
   deletedAt  DateTime?
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  author   User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  posts    Post[]
+  category      Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  author        User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  posts         Post[]
+  bookmarks     Bookmark[]
+  subscriptions ThreadSubscription[]
 
   @@index([categoryId, pinned, lastPostAt])
   @@index([lastPostAt])
@@ -179,6 +208,48 @@ model Attachment {
   @@index([postId])
 }
 
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+  @@index([userId, createdAt])
+}
+
+model ThreadSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+  @@index([threadId])
+}
+
+/* ========================================================================== */
+/*  Achievements                                                               */
+/* ========================================================================== */
+
+model UserAchievement {
+  id       String   @id @default(cuid())
+  userId   String
+  key      String
+  earnedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
 /* ========================================================================== */
 /*  Notifications                                                              */
 /* ========================================================================== */
@@ -189,6 +260,7 @@ enum NotificationType {
   REACTION
   MOD_ACTION
   SYSTEM
+  ACHIEVEMENT
 }
 
 model Notification {
@@ -212,14 +284,38 @@ model Notification {
 /*  Moderation                                                                 */
 /* ========================================================================== */
 
-model AuditLog {
-  id         String   @id @default(cuid())
-  moderatorId String?
-  action     String
-  targetType String
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String?
+  targetType String // "post" | "thread"
   targetId   String
-  meta       Json?
-  createdAt  DateTime @default(now())
+  reason     String
+  status     ReportStatus @default(OPEN)
+  resolverId String?
+  resolution String?
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+
+  reporter User? @relation("reporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  resolver User? @relation("resolver", fields: [resolverId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  moderatorId String?
+  action      String
+  targetType  String
+  targetId    String
+  meta        Json?
+  createdAt   DateTime @default(now())
 
   moderator User? @relation("moderator", fields: [moderatorId], references: [id], onDelete: SetNull)
 
@@ -231,14 +327,14 @@ model AuditLog {
 /* ========================================================================== */
 
 model Announcement {
-  id        String   @id @default(cuid())
-  title     String
-  body      String
-  source    String   @default("web") // "web" | "discord"
-  authorId  String?
+  id         String   @id @default(cuid())
+  title      String
+  body       String
+  source     String   @default("web") // "web" | "discord"
+  authorId   String?
   authorName String?
-  pinned    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  pinned     Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 

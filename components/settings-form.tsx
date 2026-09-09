@@ -11,13 +11,19 @@ import { Textarea } from "@/components/ui/textarea";
 export function SettingsForm({
   initial,
 }: {
-  initial: { name: string; username: string; bio: string };
+  initial: {
+    name: string;
+    username: string;
+    bio: string;
+    website: string;
+    bannerColor: string;
+  };
 }) {
   const router = useRouter();
-  const [name, setName] = React.useState(initial.name);
-  const [username, setUsername] = React.useState(initial.username);
-  const [bio, setBio] = React.useState(initial.bio);
+  const [form, setForm] = React.useState(initial);
   const [busy, setBusy] = React.useState(false);
+  const set = (k: keyof typeof form) => (v: string) =>
+    setForm((f) => ({ ...f, [k]: v }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,11 +32,11 @@ export function SettingsForm({
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, username, bio }),
+        body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "gagal");
-      setUsername(data.username);
+      setForm((f) => ({ ...f, username: data.username }));
       toast.success("Profil disimpan");
       router.refresh();
     } catch (err) {
@@ -46,8 +52,8 @@ export function SettingsForm({
         <Label htmlFor="name">Nama tampilan</Label>
         <Input
           id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={form.name}
+          onChange={(e) => set("name")(e.target.value)}
           maxLength={60}
         />
       </div>
@@ -55,20 +61,52 @@ export function SettingsForm({
         <Label htmlFor="username">Username</Label>
         <Input
           id="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={form.username}
+          onChange={(e) => set("username")(e.target.value)}
           maxLength={24}
         />
         <p className="text-xs text-muted-foreground">
-          Dipakai di URL profil & mention: /u/{username || "…"}
+          /u/{form.username || "…"} — juga dipakai untuk mention
         </p>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="website">Website</Label>
+        <Input
+          id="website"
+          value={form.website}
+          onChange={(e) => set("website")(e.target.value)}
+          placeholder="https://…"
+          maxLength={120}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="banner">Warna banner profil</Label>
+        <div className="flex items-center gap-2">
+          <input
+            id="banner"
+            type="color"
+            value={form.bannerColor || "#5865F2"}
+            onChange={(e) => set("bannerColor")(e.target.value)}
+            className="h-9 w-14 rounded border"
+          />
+          {form.bannerColor && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => set("bannerColor")("")}
+            >
+              Reset
+            </Button>
+          )}
+        </div>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="bio">Bio</Label>
         <Textarea
           id="bio"
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
+          value={form.bio}
+          onChange={(e) => set("bio")(e.target.value)}
           maxLength={500}
           placeholder="Markdown didukung."
         />

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { apiRole } from "@/lib/auth-helpers";
+import { apiRole, RANK } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notifications";
+import { modLog } from "@/lib/mod-log";
+import { tierForPoints } from "@/lib/tiers";
 
 export const runtime = "nodejs";
 
@@ -19,29 +21,58 @@ export async function PATCH(
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const { role, banned, banReason } = await req.json().catch(() => ({}));
-  const data: Record<string, unknown> = {};
+  // Tidak boleh menyentuh user dengan rank >= diri sendiri (kecuali diri sendiri).
+  if (target.id !== actor.id && RANK[target.role] >= RANK[actor.role]) {
+    return NextResponse.json(
+      { error: "tidak bisa memoderasi user dengan level setara/lebih tinggi" },
+      { status: 403 },
+    );
+  }
 
-  // Ubah role hanya ADMIN, dan tidak boleh mengubah sesama ADMIN.
-  if (typeof role === "string" && ["USER", "MODERATOR", "ADMIN"].includes(role)) {
-    if (actor.role !== "ADMIN") {
-      return NextResponse.json({ error: "khusus admin" }, { status: 403 });
+  const { role, banned, banReason, muteMinutes, pointsDelta } = await req
+    .json()
+    .catch(() => ({}));
+  const data: Record<string, unknown> = {};
+  const logs: string[] = [];
+
+  if (typeof role === "string" && RANK[role as keyof typeof RANK] !== undefined) {
+    if (actor.role !== "ADMIN" && actor.role !== "OWNER") {
+      return NextResponse.json({ error: "khusus admin/owner" }, { status: 403 });
     }
-    if (target.role === "ADMIN" && target.id !== actor.id) {
+    // Hanya OWNER yang boleh membuat/mencabut ADMIN atau OWNER.
+    if (
+      (role === "ADMIN" || role === "OWNER" || target.role === "ADMIN") &&
+      actor.role !== "OWNER"
+    ) {
       return NextResponse.json(
-        { error: "tidak bisa mengubah admin lain" },
+        { error: "hanya owner yang bisa mengatur admin" },
         { status: 403 },
       );
     }
     data.role = role;
+    logs.push(`role → ${role}`);
   }
 
   if (typeof banned === "boolean") {
-    if (target.role === "ADMIN") {
-      return NextResponse.json({ error: "tidak bisa ban admin" }, { status: 403 });
-    }
     data.bannedAt = banned ? new Date() : null;
     data.banReason = banned ? (banReason ?? null) : null;
+    logs.push(banned ? `ban: ${banReason ?? "-"}` : "unban");
+  }
+
+  if (Number.isFinite(muteMinutes)) {
+    data.mutedUntil =
+      muteMinutes > 0 ? new Date(Date.now() + muteMinutes * 60_000) : null;
+    logs.push(muteMinutes > 0 ? `mute ${muteMinutes}m` : "unmute");
+  }
+
+  if (Number.isInteger(pointsDelta) && pointsDelta !== 0) {
+    if (actor.role !== "ADMIN" && actor.role !== "OWNER") {
+      return NextResponse.json({ error: "khusus admin/owner" }, { status: 403 });
+    }
+    const newPoints = Math.max(0, target.points + pointsDelta);
+    data.points = newPoints;
+    data.tier = tierForPoints(newPoints);
+    logs.push(`poin ${pointsDelta > 0 ? "+" : ""}${pointsDelta}`);
   }
 
   if (Object.keys(data).length === 0) {
@@ -49,22 +80,28 @@ export async function PATCH(
   }
 
   const updated = await prisma.user.update({ where: { id }, data });
-  await prisma.auditLog.create({
-    data: {
-      moderatorId: actor.id,
-      action: "user.update",
-      targetType: "user",
-      targetId: id,
-      meta: data as object,
-    },
+
+  await modLog({
+    moderatorId: actor.id,
+    moderatorName: actor.username,
+    action: "user.update",
+    targetType: "user",
+    targetId: id,
+    summary: `@${target.username}: ${logs.join(", ")}`,
+    meta: data,
   });
 
-  if ("bannedAt" in data) {
+  if ("bannedAt" in data || "mutedUntil" in data) {
     await notify({
       userId: id,
       actorId: actor.id,
       type: "MOD_ACTION",
-      title: data.bannedAt ? "Akun kamu diblokir" : "Blokir akun kamu dicabut",
+      title:
+        "bannedAt" in data && data.bannedAt
+          ? "Akun kamu diblokir"
+          : "mutedUntil" in data && data.mutedUntil
+            ? "Kamu di-timeout sementara"
+            : "Status moderasi akun kamu berubah",
       body: (data.banReason as string) ?? undefined,
     });
   }
@@ -73,5 +110,8 @@ export async function PATCH(
     id: updated.id,
     role: updated.role,
     bannedAt: updated.bannedAt,
+    mutedUntil: updated.mutedUntil,
+    points: updated.points,
+    tier: updated.tier,
   });
 }

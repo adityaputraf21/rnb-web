@@ -13,7 +13,15 @@ export function tierClass(tier: string) {
 }
 
 export const ROLE_LABEL: Record<string, string> = {
+  OWNER: "Owner",
   ADMIN: "Admin",
   MODERATOR: "Moderator",
   USER: "Member",
+};
+
+export const ROLE_BADGE: Record<string, string> = {
+  OWNER: "bg-fuchsia-600 text-white",
+  ADMIN: "bg-red-600 text-white",
+  MODERATOR: "bg-blue-600 text-white",
+  USER: "",
 };

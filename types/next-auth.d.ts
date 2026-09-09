@@ -10,6 +10,7 @@ declare module "next-auth" {
       points: number;
       tier: string;
       banned: boolean;
+      mutedUntil: string | null;
     } & DefaultSession["user"];
   }
 }
