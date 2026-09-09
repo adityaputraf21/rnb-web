@@ -13,13 +13,14 @@ export async function PATCH(req: Request) {
     return res as Response;
   }
 
-  const { name, username, bio, website, bannerColor, bannerImage } = await req
-    .json()
-    .catch(() => ({}));
+  const { name, username, bio, website, bannerColor, bannerImage, image } =
+    await req.json().catch(() => ({}));
   const data: Record<string, string | null> = {};
 
   if (typeof name === "string") data.name = name.trim().slice(0, 60) || null;
   if (typeof bio === "string") data.bio = bio.trim().slice(0, 500) || null;
+  if (typeof image === "string")
+    data.image = /^https:\/\//.test(image) ? image : null;
   if (typeof website === "string") {
     const w = website.trim().slice(0, 120);
     data.website = w && /^https?:\/\//.test(w) ? w : w ? `https://${w}` : null;
@@ -60,6 +61,7 @@ export async function PATCH(req: Request) {
       website: true,
       bannerColor: true,
       bannerImage: true,
+      image: true,
     },
   });
   return NextResponse.json(updated);

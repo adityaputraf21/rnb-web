@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, Loader2, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadFile } from "@/lib/upload-client";
+import { initials } from "@/lib/utils";
 
 type Form = {
   name: string;
@@ -17,28 +19,52 @@ type Form = {
   website: string;
   bannerColor: string;
   bannerImage: string;
+  image: string;
 };
 
 export function SettingsForm({ initial }: { initial: Form }) {
   const router = useRouter();
   const [form, setForm] = React.useState(initial);
   const [busy, setBusy] = React.useState(false);
-  const [uploading, setUploading] = React.useState(false);
-  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = React.useState<null | "banner" | "avatar">(
+    null,
+  );
+  const [syncing, setSyncing] = React.useState(false);
+  const bannerRef = React.useRef<HTMLInputElement>(null);
+  const avatarRef = React.useRef<HTMLInputElement>(null);
   const set = (k: keyof Form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  async function uploadBanner(file: File) {
+  async function upload(file: File, kind: "banner" | "avatar") {
     if (!file.type.startsWith("image/")) return toast.error("Harus file gambar");
-    setUploading(true);
+    setUploading(kind);
     try {
-      const up = await uploadFile(file, { prefix: "banner" });
-      setForm((f) => ({ ...f, bannerImage: up.url }));
-      toast.success("Banner terunggah — jangan lupa Simpan");
+      const up = await uploadFile(file, { prefix: kind });
+      setForm((f) => ({
+        ...f,
+        [kind === "banner" ? "bannerImage" : "image"]: up.url,
+      }));
+      toast.success("Terunggah — jangan lupa Simpan");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal");
     } finally {
-      setUploading(false);
+      setUploading(null);
+    }
+  }
+
+  async function syncDiscord() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/profile/sync-discord", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "gagal");
+      setForm((f) => ({ ...f, name: data.name ?? f.name, image: data.image ?? f.image }));
+      toast.success("Nama & avatar diambil dari Discord");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -65,7 +91,55 @@ export function SettingsForm({ initial }: { initial: Form }) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      {/* Banner preview */}
+      {/* Avatar */}
+      <div className="space-y-2">
+        <Label>Foto profil</Label>
+        <div className="flex items-center gap-3">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={form.image || undefined} />
+            <AvatarFallback>{initials(form.name || form.username)}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading === "avatar"}
+              onClick={() => avatarRef.current?.click()}
+            >
+              {uploading === "avatar" ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <ImagePlus />
+              )}
+              Upload
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={syncing}
+              onClick={syncDiscord}
+            >
+              {syncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+              Ambil dari Discord
+            </Button>
+          </div>
+          <input
+            ref={avatarRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) upload(f, "avatar");
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Banner */}
       <div className="space-y-2">
         <Label>Banner profil</Label>
         <div
@@ -87,7 +161,6 @@ export function SettingsForm({ initial }: { initial: Form }) {
               type="button"
               onClick={() => set("bannerImage")("")}
               className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
-              title="Hapus gambar banner"
             >
               <X className="h-4 w-4" />
             </button>
@@ -98,24 +171,28 @@ export function SettingsForm({ initial }: { initial: Form }) {
             type="button"
             variant="outline"
             size="sm"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
+            disabled={uploading === "banner"}
+            onClick={() => bannerRef.current?.click()}
           >
-            {uploading ? <Loader2 className="animate-spin" /> : <ImagePlus />}
-            {form.bannerImage ? "Ganti gambar" : "Upload gambar"}
+            {uploading === "banner" ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <ImagePlus />
+            )}
+            {form.bannerImage ? "Ganti" : "Upload"}
           </Button>
           <input
-            ref={fileRef}
+            ref={bannerRef}
             type="file"
             accept="image/*"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) uploadBanner(f);
+              if (f) upload(f, "banner");
               e.target.value = "";
             }}
           />
-          <span className="text-xs text-muted-foreground">atau warna solid:</span>
+          <span className="text-xs text-muted-foreground">atau warna:</span>
           <input
             type="color"
             value={form.bannerColor || "#5865F2"}
@@ -133,9 +210,6 @@ export function SettingsForm({ initial }: { initial: Form }) {
             </Button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Gambar diprioritaskan di atas warna. Rasio ideal ~4:1 (mis. 1200×300).
-        </p>
       </div>
 
       <div className="space-y-1.5">
@@ -179,7 +253,7 @@ export function SettingsForm({ initial }: { initial: Form }) {
           placeholder="Markdown didukung."
         />
       </div>
-      <Button type="submit" disabled={busy || uploading}>
+      <Button type="submit" disabled={busy || !!uploading}>
         {busy ? "Menyimpan…" : "Simpan"}
       </Button>
     </form>

@@ -20,6 +20,7 @@ export default async function SettingsPage() {
         website: true,
         bannerColor: true,
         bannerImage: true,
+        image: true,
         notifyMention: true,
         notifyReply: true,
         notifyReaction: true,
@@ -43,6 +44,7 @@ export default async function SettingsPage() {
           website: user?.website ?? "",
           bannerColor: user?.bannerColor ?? "",
           bannerImage: user?.bannerImage ?? "",
+          image: user?.image ?? "",
         }}
       />
       <PushToggle />
