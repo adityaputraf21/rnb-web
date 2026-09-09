@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
 export type SiteConfig = {
@@ -20,16 +21,18 @@ const DEFAULTS: SiteConfig = {
   maintenanceMode: false,
 };
 
-/** Ambil konfigurasi situs (buat baris default kalau belum ada). */
-export async function getSiteConfig(): Promise<SiteConfig> {
+/**
+ * Ambil konfigurasi situs. `cache()` = dedupe dalam satu render request
+ * (header + banner cukup 1 query).
+ */
+export const getSiteConfig = cache(async (): Promise<SiteConfig> => {
   try {
-    const cfg = await prisma.siteConfig.upsert({
+    const cfg = await prisma.siteConfig.findUnique({
       where: { id: "singleton" },
-      update: {},
-      create: { id: "singleton" },
     });
-    return cfg;
+    if (cfg) return cfg;
+    return await prisma.siteConfig.create({ data: { id: "singleton" } });
   } catch {
     return DEFAULTS;
   }
-}
+});

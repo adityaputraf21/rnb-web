@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import type { Role } from "@prisma/client";
 import { auth } from "@/auth";
@@ -9,10 +10,10 @@ export const RANK: Record<Role, number> = {
   OWNER: 3,
 };
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const session = await auth();
   return session?.user ?? null;
-}
+});
 
 /** Untuk server component: redirect ke /login kalau belum masuk. */
 export async function requireUser(callbackUrl = "/") {

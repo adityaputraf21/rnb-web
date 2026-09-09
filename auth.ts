@@ -96,19 +96,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.banned = !!dbUser?.bannedAt;
       session.user.mutedUntil = dbUser?.mutedUntil?.toISOString() ?? null;
 
-      // presence: catat aktivitas terakhir (maks 1x / 5 menit)
-      void prisma.user
-        .updateMany({
-          where: {
-            id: user.id,
-            OR: [
-              { lastSeenAt: null },
-              { lastSeenAt: { lt: new Date(Date.now() - 5 * 60_000) } },
-            ],
-          },
-          data: { lastSeenAt: new Date() },
-        })
-        .catch(() => {});
+      // presence: catat aktivitas terakhir (best-effort, tidak menghambat respons)
+      if (Math.random() < 0.35) {
+        void prisma.user
+          .updateMany({
+            where: {
+              id: user.id,
+              OR: [
+                { lastSeenAt: null },
+                { lastSeenAt: { lt: new Date(Date.now() - 5 * 60_000) } },
+              ],
+            },
+            data: { lastSeenAt: new Date() },
+          })
+          .catch(() => {});
+      }
 
       return session;
     },
