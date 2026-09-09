@@ -17,6 +17,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "reactions-100", name: "Idola", description: "Menerima 100 reaksi", emoji: "🌟" },
   { key: "tier-gold", name: "Naik Kelas", description: "Mencapai tier Gold", emoji: "🏅" },
   { key: "tier-legend", name: "Legenda", description: "Mencapai tier Legend", emoji: "👑" },
+  { key: "first-status", name: "Say Hi", description: "Posting status pertama di feed", emoji: "📸" },
+  { key: "status-25", name: "Aktif Feed", description: "25 status", emoji: "🗞️" },
 ];
 
 export const ACHIEVEMENT_MAP = Object.fromEntries(
@@ -45,10 +47,11 @@ async function grant(userId: string, key: string) {
  * Dipanggil setelah aksi (buat thread, post, dapat reaksi, naik tier).
  */
 export async function checkAchievements(userId: string) {
-  const [threads, posts, reactions, user] = await Promise.all([
+  const [threads, posts, reactions, statuses, user] = await Promise.all([
     prisma.thread.count({ where: { authorId: userId, deletedAt: null } }),
     prisma.post.count({ where: { authorId: userId, deletedAt: null } }),
     prisma.reaction.count({ where: { post: { authorId: userId } } }),
+    prisma.status.count({ where: { authorId: userId, deletedAt: null } }),
     prisma.user.findUnique({ where: { id: userId }, select: { tier: true } }),
   ]);
 
@@ -59,6 +62,8 @@ export async function checkAchievements(userId: string) {
   if (posts >= 250) earn.push("posts-250");
   if (reactions >= 25) earn.push("reactions-25");
   if (reactions >= 100) earn.push("reactions-100");
+  if (statuses >= 1) earn.push("first-status");
+  if (statuses >= 25) earn.push("status-25");
   if (user?.tier && ["Gold", "Platinum", "Diamond", "Legend"].includes(user.tier))
     earn.push("tier-gold");
   if (user?.tier === "Legend") earn.push("tier-legend");

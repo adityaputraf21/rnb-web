@@ -26,15 +26,21 @@ export async function PATCH(
 
   // Aksi opsional: hapus konten yang dilaporkan.
   if (action === "delete" && status === "RESOLVED") {
+    const now = new Date();
     if (report.targetType === "post") {
       await prisma.post.updateMany({
         where: { id: report.targetId },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: now },
+      });
+    } else if (report.targetType === "status") {
+      await prisma.status.updateMany({
+        where: { id: report.targetId },
+        data: { deletedAt: now },
       });
     } else {
       await prisma.thread.updateMany({
         where: { id: report.targetId },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: now },
       });
     }
   }

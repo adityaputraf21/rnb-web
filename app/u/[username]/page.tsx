@@ -9,10 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
+import { StatusCard } from "@/components/feed/status-card";
+import { shapeStatus } from "@/lib/status-shape";
+import { hasRole } from "@/lib/auth-helpers";
 import { initials } from "@/lib/utils";
 import { timeAgo, fullDate } from "@/lib/format";
 import { tierClass, ROLE_LABEL, ROLE_BADGE } from "@/lib/tier-style";
-import { ACHIEVEMENT_MAP, ACHIEVEMENTS } from "@/lib/achievements";
+import { ACHIEVEMENTS } from "@/lib/achievements";
 
 export async function generateMetadata({
   params,
@@ -56,12 +59,26 @@ export default async function ProfilePage({
   });
   if (!user) notFound();
 
-  const [rank, reactionsReceived] = await Promise.all([
+  const [rank, reactionsReceived, statusRows] = await Promise.all([
     prisma.user
       .count({ where: { points: { gt: user.points } } })
       .then((n) => n + 1),
     prisma.reaction.count({ where: { post: { authorId: user.id } } }),
+    prisma.status.findMany({
+      where: { authorId: user.id, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: {
+        author: {
+          select: { username: true, name: true, image: true, role: true, tier: true },
+        },
+        images: { orderBy: { position: "asc" } },
+        likes: me ? { where: { userId: me.id }, select: { id: true } } : false,
+        _count: { select: { likes: true, comments: true } },
+      },
+    }),
   ]);
+  const statuses = statusRows.map((s) => shapeStatus(s, me));
 
   const online =
     !!user.lastSeenAt && Date.now() - user.lastSeenAt.getTime() < 5 * 60000;
@@ -216,6 +233,7 @@ export default async function ProfilePage({
         <TabsList>
           <TabsTrigger value="threads">Thread ({user._count.threads})</TabsTrigger>
           <TabsTrigger value="posts">Balasan</TabsTrigger>
+          <TabsTrigger value="status">Status ({statuses.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="threads">
@@ -262,6 +280,22 @@ export default async function ProfilePage({
               </Link>
             ))}
           </Card>
+        </TabsContent>
+
+        <TabsContent value="status" className="space-y-3">
+          {statuses.length === 0 && (
+            <Card>
+              <p className="p-4 text-sm text-muted-foreground">Belum ada status.</p>
+            </Card>
+          )}
+          {statuses.map((s) => (
+            <StatusCard
+              key={s.id}
+              status={s}
+              currentUsername={me?.username ?? null}
+              canModerate={hasRole(me, "MODERATOR")}
+            />
+          ))}
         </TabsContent>
       </Tabs>
     </div>

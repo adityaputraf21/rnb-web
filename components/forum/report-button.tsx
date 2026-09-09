@@ -19,7 +19,7 @@ export function ReportButton({
   targetId,
   label,
 }: {
-  targetType: "post" | "thread";
+  targetType: "post" | "thread" | "status";
   targetId: string;
   label?: string;
 }) {
@@ -58,7 +58,7 @@ export function ReportButton({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Laporkan {targetType === "post" ? "balasan" : "thread"}</DialogTitle>
+          <DialogTitle>Laporkan {targetType === "post" ? "balasan" : targetType === "status" ? "status" : "thread"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <Textarea

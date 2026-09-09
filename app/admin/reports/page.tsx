@@ -28,6 +28,12 @@ export default async function AdminReportsPage() {
           targetPreview = p.body.slice(0, 240);
           targetUrl = `/forum/${p.thread.category.slug}/${p.thread.slug}#post-${p.id}`;
         }
+      } else if (r.targetType === "status") {
+        const s = await prisma.status.findUnique({ where: { id: r.targetId } });
+        if (s) {
+          targetPreview = s.body.slice(0, 240) || "(status berisi gambar)";
+          targetUrl = `/feed/${s.id}`;
+        }
       } else {
         const t = await prisma.thread.findUnique({
           where: { id: r.targetId },

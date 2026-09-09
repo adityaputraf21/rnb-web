@@ -56,6 +56,9 @@ model User {
   bookmarks     Bookmark[]
   subscriptions ThreadSubscription[]
   achievements  UserAchievement[]
+  statuses       Status[]
+  statusLikes    StatusLike[]
+  statusComments StatusComment[]
 
   notifications      Notification[] @relation("recipient")
   actedNotifications Notification[] @relation("actor")
@@ -233,6 +236,65 @@ model ThreadSubscription {
 
   @@unique([userId, threadId])
   @@index([threadId])
+}
+
+/* ========================================================================== */
+/*  Feed (status sosial)                                                       */
+/* ========================================================================== */
+
+model Status {
+  id        String    @id @default(cuid())
+  authorId  String?
+  body      String
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  author   User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  images   StatusImage[]
+  likes    StatusLike[]
+  comments StatusComment[]
+
+  @@index([createdAt])
+  @@index([authorId, createdAt])
+}
+
+model StatusImage {
+  id       String @id @default(cuid())
+  statusId String
+  url      String
+  position Int    @default(0)
+
+  status Status @relation(fields: [statusId], references: [id], onDelete: Cascade)
+
+  @@index([statusId])
+}
+
+model StatusLike {
+  id        String   @id @default(cuid())
+  statusId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  status Status @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([statusId, userId])
+  @@index([statusId])
+}
+
+model StatusComment {
+  id        String    @id @default(cuid())
+  statusId  String
+  authorId  String?
+  body      String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  status Status @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  author User?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([statusId, createdAt])
 }
 
 /* ========================================================================== */

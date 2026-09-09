@@ -10,6 +10,7 @@ import { SignInButton } from "@/components/sign-in-button";
 import { SearchBox } from "@/components/search-box";
 
 const NAV = [
+  { href: "/feed", label: "Feed" },
   { href: "/forum", label: "Forum" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/events", label: "Event" },
