@@ -12,6 +12,8 @@ const NAV = [
   { href: "/explore", label: "Jelajah" },
   { href: "/forum", label: "Forum" },
   { href: "/blog", label: "Blog" },
+  { href: "/wiki", label: "Wiki" },
+  { href: "/market", label: "Pasar" },
   { href: "/quests", label: "Quest" },
   { href: "/messages", label: "Pesan" },
   { href: "/leaderboard", label: "Leaderboard" },

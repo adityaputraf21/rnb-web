@@ -19,6 +19,8 @@ import {
   SmilePlus,
   Mic,
   Square,
+  Phone,
+  Video,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -301,6 +303,38 @@ export function Chat({
           {other.name ?? other.username}
           {muted && <BellOff className="h-3.5 w-3.5 text-muted-foreground" />}
         </Link>
+        {canMessage && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Panggilan suara"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("rnb:call", {
+                    detail: { username: other.username, kind: "audio" },
+                  }),
+                )
+              }
+            >
+              <Phone />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Panggilan video"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("rnb:call", {
+                    detail: { username: other.username, kind: "video" },
+                  }),
+                )
+              }
+            >
+              <Video />
+            </Button>
+          </>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">

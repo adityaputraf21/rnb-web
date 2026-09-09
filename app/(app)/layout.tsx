@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { applyPendingInvite } from "@/lib/invites";
+import { CallProvider } from "@/components/calls/call-provider";
 
 /**
  * Semua halaman di grup (app) wajib login. Middleware sudah menyaring cepat
@@ -26,5 +27,10 @@ export default async function AppLayout({
   if (!user.onboarded && !path.startsWith("/onboarding")) {
     redirect("/onboarding");
   }
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <CallProvider />
+    </>
+  );
 }

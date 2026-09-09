@@ -28,6 +28,8 @@ export async function SiteHeader() {
     { href: "/explore", label: "Jelajah" },
     { href: "/forum", label: "Forum" },
     ...(cfg.blogEnabled ? [{ href: "/blog", label: "Blog" }] : []),
+    { href: "/wiki", label: "Wiki" },
+    { href: "/market", label: "Pasar" },
     ...(cfg.questsEnabled && user ? [{ href: "/quests", label: "Quest" }] : []),
     { href: "/leaderboard", label: "Leaderboard" },
     { href: "/events", label: "Event" },

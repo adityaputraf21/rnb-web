@@ -125,6 +125,12 @@ model User {
   storyPollVotes StoryPollVote[]
   seasonAwards   SeasonAward[]
 
+  listings      Listing[]
+  wikiEdits     WikiPage[]      @relation("wikiEditor")
+  wikiRevisions WikiRevision[]  @relation("wikiReviser")
+  callsMade     CallSession[]   @relation("callCaller")
+  callsReceived CallSession[]   @relation("callCallee")
+
   @@index([points])
   @@index([lastSeenAt])
 }
@@ -1020,4 +1026,113 @@ model SeasonAward {
 
   @@unique([userId, season])
   @@index([season])
+}
+
+/* ========================================================================== */
+/*  Marketplace                                                                */
+/* ========================================================================== */
+
+model Listing {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String
+  price       Int      @default(0) // rupiah; 0 = gratis / nego
+  negotiable  Boolean  @default(false)
+  category    String   @default("lainnya")
+  condition   String   @default("used") // new | used
+  location    String?
+  status      String   @default("active") // active | sold | closed
+  sellerId    String?
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  seller User?          @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  images ListingImage[]
+
+  @@index([status, createdAt])
+  @@index([category, status])
+}
+
+model ListingImage {
+  id        String @id @default(cuid())
+  listingId String
+  url       String
+  position  Int    @default(0)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+/* ========================================================================== */
+/*  Wiki                                                                       */
+/* ========================================================================== */
+
+model WikiPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  body        String   @default("")
+  locked      Boolean  @default(false)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User?          @relation("wikiEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  revisions WikiRevision[]
+
+  @@index([updatedAt])
+}
+
+model WikiRevision {
+  id        String   @id @default(cuid())
+  pageId    String
+  title     String
+  body      String
+  summary   String?
+  editorId  String?
+  createdAt DateTime @default(now())
+
+  page   WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  editor User?    @relation("wikiReviser", fields: [editorId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, createdAt])
+}
+
+/* ========================================================================== */
+/*  Panggilan suara / video (WebRTC, signaling via polling DB)                 */
+/* ========================================================================== */
+
+model CallSession {
+  id         String    @id @default(cuid())
+  callerId   String
+  calleeId   String
+  kind       String    @default("video") // audio | video
+  status     String    @default("ringing") // ringing | active | ended | declined | missed
+  offer      Json?
+  answer     Json?
+  startedAt  DateTime  @default(now())
+  answeredAt DateTime?
+  endedAt    DateTime?
+
+  caller     User            @relation("callCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  callee     User            @relation("callCallee", fields: [calleeId], references: [id], onDelete: Cascade)
+  candidates CallCandidate[]
+
+  @@index([calleeId, status])
+  @@index([callerId, status])
+}
+
+model CallCandidate {
+  id         String   @id @default(cuid())
+  callId     String
+  fromCaller Boolean
+  data       Json
+  createdAt  DateTime @default(now())
+
+  call CallSession @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId, createdAt])
 }
