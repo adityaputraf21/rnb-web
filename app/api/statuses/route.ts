@@ -123,6 +123,7 @@ export async function POST(req: Request) {
 
   await awardPoints(user.id, 3);
   await checkAchievements(user.id);
+  void (await import("@/lib/hashtags")).bumpHashtags(text);
   await notifyMentions({
     body: text,
     actorId: user.id,

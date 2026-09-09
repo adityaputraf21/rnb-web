@@ -47,6 +47,11 @@ model User {
   notifyReaction Boolean @default(true)
   notifyFollow   Boolean @default(true)
 
+  // Streak & onboarding
+  streakCount  Int       @default(0)
+  streakLastAt DateTime?
+  onboardedAt  DateTime?
+
   lastSeenAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -76,9 +81,12 @@ model User {
   warningsIssued   Warning[] @relation("warner")
   conversationsA Conversation[] @relation("convA")
   conversationsB Conversation[] @relation("convB")
-  messagesSent   Message[]
-  stories        Story[]
-  storyViews     StoryView[]
+  messagesSent     Message[]
+  messageReactions MessageReaction[]
+  stories          Story[]
+  storyViews       StoryView[]
+  storyReactions   StoryReaction[]
+  pushSubs         PushSubscription[]
 
   notifications      Notification[] @relation("recipient")
   actedNotifications Notification[] @relation("actor")
@@ -290,13 +298,16 @@ model Attachment {
 model Bookmark {
   id        String   @id @default(cuid())
   userId    String
-  threadId  String
+  threadId  String?
+  statusId  String?
   createdAt DateTime @default(now())
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  status Status? @relation(fields: [statusId], references: [id], onDelete: Cascade)
 
   @@unique([userId, threadId])
+  @@unique([userId, statusId])
   @@index([userId, createdAt])
 }
 
@@ -318,23 +329,28 @@ model ThreadSubscription {
 /* ========================================================================== */
 
 model Status {
-  id        String    @id @default(cuid())
-  authorId  String?
-  body      String
-  pinned    Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  editedAt  DateTime?
-  deletedAt DateTime?
+  id         String    @id @default(cuid())
+  authorId   String?
+  body       String
+  pinned     Boolean   @default(false)
+  repostOfId String?
+  createdAt  DateTime  @default(now())
+  editedAt   DateTime?
+  deletedAt  DateTime?
 
   author    User?            @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  repostOf  Status?          @relation("repost", fields: [repostOfId], references: [id], onDelete: SetNull)
+  reposts   Status[]         @relation("repost")
   images    StatusImage[]
   likes     StatusLike[]
   reactions StatusReaction[]
   comments  StatusComment[]
+  bookmarks Bookmark[]
   poll      Poll?
 
   @@index([createdAt])
   @@index([authorId, createdAt])
+  @@index([repostOfId])
 }
 
 model StatusReaction {
@@ -446,13 +462,15 @@ model PollVote {
 /* ========================================================================== */
 
 model Conversation {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   aId           String // id user secara leksikografis lebih kecil
   bId           String
-  lastMessageAt DateTime @default(now())
-  aArchived     Boolean  @default(false)
-  bArchived     Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  lastMessageAt DateTime  @default(now())
+  aMuted        Boolean   @default(false)
+  bMuted        Boolean   @default(false)
+  aClearedAt    DateTime? // sembunyikan pesan sebelum ini dari sisi A
+  bClearedAt    DateTime?
+  createdAt     DateTime  @default(now())
 
   a        User      @relation("convA", fields: [aId], references: [id], onDelete: Cascade)
   b        User      @relation("convB", fields: [bId], references: [id], onDelete: Cascade)
@@ -474,10 +492,47 @@ model Message {
   deletedAt      DateTime?
   readAt         DateTime?
 
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?             @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  reactions    MessageReaction[]
 
   @@index([conversationId, createdAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Hashtag {
+  tag        String   @id
+  count      Int      @default(0)
+  lastUsedAt DateTime @default(now())
+
+  @@index([lastUsedAt])
+  @@index([count])
 }
 
 /* ========================================================================== */
@@ -493,11 +548,26 @@ model Story {
   createdAt DateTime @default(now())
   expiresAt DateTime
 
-  author User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  views  StoryView[]
+  author    User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  views     StoryView[]
+  reactions StoryReaction[]
 
   @@index([expiresAt])
   @@index([authorId, createdAt])
+}
+
+model StoryReaction {
+  id        String   @id @default(cuid())
+  storyId   String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([storyId])
 }
 
 model StoryView {

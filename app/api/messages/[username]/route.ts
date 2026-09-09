@@ -31,14 +31,28 @@ export async function GET(
   const conv = await prisma.conversation.findUnique({
     where: { aId_bId: { aId, bId } },
   });
+  const clearedAt = conv
+    ? me.id === conv.aId
+      ? conv.aClearedAt
+      : conv.bClearedAt
+    : null;
+  const muted = conv
+    ? me.id === conv.aId
+      ? conv.aMuted
+      : conv.bMuted
+    : false;
 
   const before = new URL(req.url).searchParams.get("before") ?? undefined;
   const messages = conv
     ? await prisma.message.findMany({
-        where: { conversationId: conv.id },
+        where: {
+          conversationId: conv.id,
+          ...(clearedAt ? { createdAt: { gt: clearedAt } } : {}),
+        },
         orderBy: { createdAt: "desc" },
         take: 40,
         ...(before ? { cursor: { id: before }, skip: 1 } : {}),
+        include: { reactions: { select: { emoji: true, userId: true } } },
       })
     : [];
 
@@ -52,6 +66,7 @@ export async function GET(
 
   return NextResponse.json({
     other,
+    muted,
     canMessage: await canDM(me.id, other.id),
     messages: messages.reverse().map((m) => ({
       id: m.id,
@@ -63,6 +78,10 @@ export async function GET(
       read: !!m.readAt,
       edited: !!m.editedAt,
       deleted: !!m.deletedAt,
+      reactions: m.reactions.map((r) => ({
+        emoji: r.emoji,
+        mine: r.userId === me.id,
+      })),
     })),
   });
 }
@@ -107,7 +126,9 @@ export async function POST(
     data: { lastMessageAt: new Date() },
   });
 
-  await notify({
+  const otherMuted = other.id === conv.aId ? conv.aMuted : conv.bMuted;
+  if (!otherMuted)
+    await notify({
     userId: other.id,
     actorId: me.id,
     type: "DM",
@@ -126,5 +147,46 @@ export async function POST(
     read: false,
     edited: false,
     deleted: false,
+    reactions: [],
   });
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ username: string }> },
+) {
+  let me;
+  try {
+    me = await apiUser();
+  } catch (res) {
+    return res as Response;
+  }
+  const { username } = await params;
+  const other = await resolveOther(username);
+  if (!other) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  const [aId, bId] = convPair(me.id, other.id);
+  const conv = await prisma.conversation.findUnique({
+    where: { aId_bId: { aId, bId } },
+  });
+  if (!conv) return NextResponse.json({ error: "belum ada percakapan" }, { status: 404 });
+
+  const isA = me.id === conv.aId;
+  const { action } = await req.json().catch(() => ({}));
+
+  if (action === "clear") {
+    await prisma.conversation.update({
+      where: { id: conv.id },
+      data: isA ? { aClearedAt: new Date() } : { bClearedAt: new Date() },
+    });
+  } else if (action === "mute" || action === "unmute") {
+    const val = action === "mute";
+    await prisma.conversation.update({
+      where: { id: conv.id },
+      data: isA ? { aMuted: val } : { bMuted: val },
+    });
+  } else {
+    return NextResponse.json({ error: "action tidak valid" }, { status: 400 });
+  }
+  return NextResponse.json({ ok: true });
 }

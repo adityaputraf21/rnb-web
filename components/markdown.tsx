@@ -27,12 +27,16 @@ const schema = {
   },
 };
 
-/** @username -> link profil; ||teks|| -> spoiler. */
+/** @username -> profil; #tag -> topik; ||teks|| -> spoiler. */
 function preprocess(md: string): string {
   return md
     .replace(
       /(^|[^\w`/])@([a-z0-9][a-z0-9-]{1,23})/gi,
       (_m, pre, name) => `${pre}[@${name}](/u/${name.toLowerCase()})`,
+    )
+    .replace(
+      /(^|[^\w&`/])#([a-z0-9_]{2,30})/gi,
+      (_m, pre, tag) => `${pre}[#${tag}](/tag/${tag.toLowerCase()})`,
     )
     .replace(/\|\|([^\n|]+)\|\|/g, (_m, t) => `<span class="spoiler">${t}</span>`);
 }

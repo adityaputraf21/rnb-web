@@ -33,12 +33,19 @@ export default async function ChatPage({
   const conv = await prisma.conversation.findUnique({
     where: { aId_bId: { aId, bId } },
   });
+  const isA = conv?.aId === me.id;
+  const clearedAt = conv ? (isA ? conv.aClearedAt : conv.bClearedAt) : null;
+  const muted = conv ? (isA ? conv.aMuted : conv.bMuted) : false;
 
   const messages = conv
     ? await prisma.message.findMany({
-        where: { conversationId: conv.id },
+        where: {
+          conversationId: conv.id,
+          ...(clearedAt ? { createdAt: { gt: clearedAt } } : {}),
+        },
         orderBy: { createdAt: "asc" },
         take: 60,
+        include: { reactions: { select: { emoji: true, userId: true } } },
       })
     : [];
 
@@ -53,6 +60,7 @@ export default async function ChatPage({
     <div className="mx-auto max-w-lg">
       <Chat
         other={other}
+        initialMuted={muted}
         canMessage={await canDM(me.id, other.id)}
         initialMessages={messages.map((m) => ({
           id: m.id,
@@ -64,6 +72,10 @@ export default async function ChatPage({
           read: !!m.readAt,
           edited: !!m.editedAt,
           deleted: !!m.deletedAt,
+          reactions: m.reactions.map((r) => ({
+            emoji: r.emoji,
+            mine: r.userId === me.id,
+          })),
         }))}
       />
     </div>

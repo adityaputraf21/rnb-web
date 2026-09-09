@@ -12,11 +12,15 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+  const h = await headers();
+  const path = h.get("x-pathname") || "/feed";
+
   if (!user) {
-    const h = await headers();
-    const path = h.get("x-pathname") || "/feed";
     redirect(`/login?callbackUrl=${encodeURIComponent(path)}`);
   }
   if (user.banned) redirect("/banned");
+  if (!user.onboarded && !path.startsWith("/onboarding")) {
+    redirect("/onboarding");
+  }
   return <>{children}</>;
 }

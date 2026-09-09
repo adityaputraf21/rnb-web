@@ -13,6 +13,7 @@ import { MobileNav } from "@/components/mobile-nav";
 
 const NAV = [
   { href: "/feed", label: "Feed" },
+  { href: "/explore", label: "Jelajah" },
   { href: "/forum", label: "Forum" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/events", label: "Event" },

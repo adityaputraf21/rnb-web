@@ -13,6 +13,7 @@ const PUBLIC = [
   "/sitemap.xml",
   "/manifest.webmanifest",
   "/icon.svg",
+  "/sw.js",
 ];
 
 const SESSION_COOKIES = [

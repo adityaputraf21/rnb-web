@@ -81,11 +81,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         where: { id: user.id },
         select: {
           username: true,
+          name: true,
           role: true,
           points: true,
           tier: true,
           bannedAt: true,
           mutedUntil: true,
+          onboardedAt: true,
+          streakCount: true,
+          streakLastAt: true,
         },
       });
       session.user.id = user.id;
@@ -95,6 +99,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.tier = dbUser?.tier ?? "Bronze";
       session.user.banned = !!dbUser?.bannedAt;
       session.user.mutedUntil = dbUser?.mutedUntil?.toISOString() ?? null;
+      session.user.onboarded = !!dbUser?.onboardedAt;
+      session.user.streak = dbUser?.streakCount ?? 0;
+
+      // Streak login harian
+      if (dbUser) {
+        const today = new Date().toISOString().slice(0, 10);
+        const last = dbUser.streakLastAt?.toISOString().slice(0, 10);
+        if (last !== today) {
+          const yest = new Date(Date.now() - 86400000)
+            .toISOString()
+            .slice(0, 10);
+          const nextCount = last === yest ? dbUser.streakCount + 1 : 1;
+          session.user.streak = nextCount;
+          void prisma.user
+            .update({
+              where: { id: user.id },
+              data: {
+                streakCount: nextCount,
+                streakLastAt: new Date(),
+                points: { increment: Math.min(5, nextCount) },
+              },
+            })
+            .catch(() => {});
+        }
+      }
 
       // presence: catat aktivitas terakhir (best-effort, tidak menghambat respons)
       if (Math.random() < 0.35) {

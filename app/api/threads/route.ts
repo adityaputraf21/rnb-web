@@ -84,6 +84,7 @@ export async function POST(req: Request) {
   await subscribe(user.id, thread.id);
   await awardPoints(user.id, POINTS.THREAD);
   await checkAchievements(user.id);
+  void (await import("@/lib/hashtags")).bumpHashtags(`${title} ${body}`);
 
   const url = `/forum/${category.slug}/${thread.slug}`;
   await notifyMentions({

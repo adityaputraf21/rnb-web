@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Paperclip,
@@ -12,14 +13,27 @@ import {
   Trash2,
   Check,
   X,
+  MoreVertical,
+  BellOff,
+  Bell,
+  SmilePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { initials, cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import { uploadFile } from "@/lib/upload-client";
 
+const DM_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢", "🙏"];
+
+type Reaction = { emoji: string; mine: boolean };
 type Msg = {
   id: string;
   body: string;
@@ -30,25 +44,62 @@ type Msg = {
   read: boolean;
   edited: boolean;
   deleted: boolean;
+  reactions: Reaction[];
 };
 
 export function Chat({
   other,
   initialMessages,
+  initialMuted,
   canMessage,
 }: {
   other: { username: string; name: string | null; image: string | null };
   initialMessages: Msg[];
+  initialMuted: boolean;
   canMessage: boolean;
 }) {
+  const router = useRouter();
   const [messages, setMessages] = React.useState<Msg[]>(initialMessages);
+  const [muted, setMuted] = React.useState(initialMuted);
   const [text, setText] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [editId, setEditId] = React.useState<string | null>(null);
   const [editText, setEditText] = React.useState("");
+  const [reactFor, setReactFor] = React.useState<string | null>(null);
   const endRef = React.useRef<HTMLDivElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  async function convAction(action: string) {
+    const res = await fetch(`/api/messages/${other.username}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) return toast.error("gagal");
+    if (action === "mute") setMuted(true);
+    if (action === "unmute") setMuted(false);
+    if (action === "clear") {
+      setMessages([]);
+      toast.success("Chat dibersihkan");
+    }
+    router.refresh();
+  }
+
+  async function react(id: string, emoji: string) {
+    setReactFor(null);
+    const res = await fetch(`/api/dm/${id}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setMessages((m) =>
+        m.map((x) => (x.id === id ? { ...x, reactions: d.reactions } : x)),
+      );
+    }
+  }
 
   async function saveEdit(id: string) {
     if (!editText.trim()) return;
@@ -158,14 +209,37 @@ export function Chat({
         </Button>
         <Link
           href={`/u/${other.username}`}
-          className="flex items-center gap-2 font-medium hover:underline"
+          className="flex flex-1 items-center gap-2 font-medium hover:underline"
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={other.image ?? undefined} />
             <AvatarFallback>{initials(other.name ?? other.username)}</AvatarFallback>
           </Avatar>
           {other.name ?? other.username}
+          {muted && <BellOff className="h-3.5 w-3.5 text-muted-foreground" />}
         </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => convAction(muted ? "unmute" : "mute")}>
+              {muted ? <Bell /> : <BellOff />}
+              {muted ? "Bunyikan notifikasi" : "Bisukan notifikasi"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                if (confirm("Bersihkan semua pesan dari sisi kamu?"))
+                  convAction("clear");
+              }}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 /> Bersihkan chat
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
@@ -272,6 +346,52 @@ export function Chat({
                 </>
               )}
             </div>
+
+            {!m.deleted && (
+              <div className="relative flex items-center">
+                <button
+                  className="p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  onClick={() => setReactFor(reactFor === m.id ? null : m.id)}
+                >
+                  <SmilePlus className="h-3.5 w-3.5" />
+                </button>
+                {reactFor === m.id && (
+                  <div className="absolute bottom-full z-10 mb-1 flex gap-0.5 rounded-full border bg-popover p-1 shadow-md">
+                    {DM_EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        className="rounded p-0.5 text-base hover:bg-accent"
+                        onClick={() => react(m.id, e)}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {m.reactions.length > 0 && (
+              <div
+                className={cn(
+                  "flex gap-0.5",
+                  m.mine ? "order-first" : "",
+                )}
+              >
+                {m.reactions.map((r, ri) => (
+                  <button
+                    key={ri}
+                    onClick={() => react(m.id, r.emoji)}
+                    className={cn(
+                      "rounded-full border px-1 text-xs",
+                      r.mine && "border-primary bg-primary/10",
+                    )}
+                  >
+                    {r.emoji}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         <div ref={endRef} />

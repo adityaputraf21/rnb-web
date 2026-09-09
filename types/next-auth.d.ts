@@ -11,6 +11,8 @@ declare module "next-auth" {
       tier: string;
       banned: boolean;
       mutedUntil: string | null;
+      onboarded: boolean;
+      streak: number;
     } & DefaultSession["user"];
   }
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SettingsForm } from "@/components/settings-form";
 import { NotificationPrefs } from "@/components/notification-prefs";
 import { BlockedUsers } from "@/components/blocked-users";
+import { PushToggle } from "@/components/push-toggle";
 
 export const metadata = { title: "Pengaturan" };
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export default async function SettingsPage() {
           bannerImage: user?.bannerImage ?? "",
         }}
       />
+      <PushToggle />
       <NotificationPrefs
         initial={{
           notifyMention: user?.notifyMention ?? true,

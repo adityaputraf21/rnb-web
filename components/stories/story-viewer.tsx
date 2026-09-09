@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Trash2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Trash2, Eye, ChevronLeft, ChevronRight, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { initials, cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { timeAgo } from "@/lib/format";
 import type { StoryGroup } from "@/components/stories/types";
 
 const IMAGE_MS = 5000;
+const STORY_EMOJIS = ["❤️", "🔥", "😂", "😮", "😢", "👏", "💯"];
 
 export function StoryViewer({
   groups,
@@ -27,10 +28,37 @@ export function StoryViewer({
   const [viewers, setViewers] = React.useState<
     { username: string; name: string | null; image: string | null; at: string }[] | null
   >(null);
+  const [reply, setReply] = React.useState("");
+  const [replyFocus, setReplyFocus] = React.useState(false);
   const group = groups[gi];
   const story = group?.items[si];
   const timerRef = React.useRef<number | null>(null);
-  const paused = viewers !== null;
+  const paused = viewers !== null || replyFocus;
+
+  async function sendReply() {
+    if (!story || !reply.trim()) return;
+    const res = await fetch(`/api/stories/${story.id}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: reply }),
+    });
+    if (res.ok) {
+      toast.success("Balasan terkirim ke DM");
+      setReply("");
+    } else {
+      toast.error((await res.json()).error ?? "gagal");
+    }
+  }
+
+  async function quickReact(emoji: string) {
+    if (!story) return;
+    await fetch(`/api/stories/${story.id}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    });
+    toast.success(`Reaksi ${emoji} terkirim`);
+  }
 
   async function openViewers() {
     if (!story) return;
@@ -184,20 +212,71 @@ export function StoryViewer({
         </div>
 
         {story.caption && (
-          <p className="absolute bottom-6 left-0 right-0 px-6 text-center text-sm text-white drop-shadow">
+          <p
+            className={cn(
+              "absolute left-0 right-0 px-6 text-center text-sm text-white drop-shadow",
+              story.mine ? "bottom-6" : "bottom-24",
+            )}
+          >
             {story.caption}
           </p>
+        )}
+
+        {/* balas + reaksi (story orang lain) */}
+        {!story.mine && (
+          <div className="absolute inset-x-0 bottom-0 z-20 space-y-2 p-3">
+            <div className="flex justify-center gap-1.5">
+              {STORY_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => quickReact(e)}
+                  className="text-2xl transition-transform hover:scale-125"
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <form
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                sendReply();
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                value={reply}
+                onChange={(ev) => setReply(ev.target.value)}
+                onFocus={() => setReplyFocus(true)}
+                onBlur={() => setReplyFocus(false)}
+                placeholder={`Balas ${group.name ?? group.username}…`}
+                className="h-9 flex-1 rounded-full border border-white/30 bg-black/40 px-4 text-sm text-white outline-none placeholder:text-white/60"
+              />
+              <button
+                type="submit"
+                disabled={!reply.trim()}
+                className="rounded-full bg-white/20 p-2 text-white disabled:opacity-40"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
         )}
 
         {/* tap zones */}
         <button
           aria-label="Sebelumnya"
-          className="absolute bottom-0 left-0 top-16 w-1/3"
+          className={cn(
+            "absolute left-0 top-16 w-1/3",
+            story.mine ? "bottom-0" : "bottom-28",
+          )}
           onClick={prev}
         />
         <button
           aria-label="Berikutnya"
-          className="absolute bottom-0 right-0 top-16 w-1/3"
+          className={cn(
+            "absolute right-0 top-16 w-1/3",
+            story.mine ? "bottom-0" : "bottom-28",
+          )}
           onClick={next}
         />
         <button

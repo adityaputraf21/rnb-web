@@ -1,5 +1,6 @@
 import type { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { sendPush } from "@/lib/push";
 
 const MENTION_RE = /(?<![\w`])@([a-z0-9][a-z0-9-]{1,23})/gi;
 
@@ -69,6 +70,12 @@ export async function notify(input: {
       url: input.url,
     },
   });
+
+  void sendPush(input.userId, {
+    title: input.title,
+    body: input.body,
+    url: input.url,
+  }).catch(() => {});
 }
 
 /** Buat notifikasi MENTION untuk setiap username valid yang disebut. */
