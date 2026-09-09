@@ -2,28 +2,51 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
 
-export function SettingsForm({
-  initial,
-}: {
-  initial: {
-    name: string;
-    username: string;
-    bio: string;
-    website: string;
-    bannerColor: string;
-  };
-}) {
+type Form = {
+  name: string;
+  username: string;
+  bio: string;
+  website: string;
+  bannerColor: string;
+  bannerImage: string;
+};
+
+export function SettingsForm({ initial }: { initial: Form }) {
   const router = useRouter();
   const [form, setForm] = React.useState(initial);
   const [busy, setBusy] = React.useState(false);
-  const set = (k: keyof typeof form) => (v: string) =>
+  const [uploading, setUploading] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const set = (k: keyof Form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  async function uploadBanner(file: File) {
+    if (!file.type.startsWith("image/")) return toast.error("Harus file gambar");
+    if (file.size > MAX_UPLOAD_BYTES)
+      return toast.error(`Maksimal ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB`);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "gagal upload");
+      setForm((f) => ({ ...f, bannerImage: data.url }));
+      toast.success("Banner terunggah — jangan lupa Simpan");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,7 +70,80 @@ export function SettingsForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-5">
+      {/* Banner preview */}
+      <div className="space-y-2">
+        <Label>Banner profil</Label>
+        <div
+          className="relative h-32 overflow-hidden rounded-xl border bg-muted"
+          style={
+            form.bannerImage
+              ? {
+                  backgroundImage: `url(${form.bannerImage})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : {
+                  background: `linear-gradient(135deg, ${form.bannerColor || "#5865F2"}, ${(form.bannerColor || "#5865F2")}99)`,
+                }
+          }
+        >
+          {form.bannerImage && (
+            <button
+              type="button"
+              onClick={() => set("bannerImage")("")}
+              className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+              title="Hapus gambar banner"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? <Loader2 className="animate-spin" /> : <ImagePlus />}
+            {form.bannerImage ? "Ganti gambar" : "Upload gambar"}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadBanner(f);
+              e.target.value = "";
+            }}
+          />
+          <span className="text-xs text-muted-foreground">atau warna solid:</span>
+          <input
+            type="color"
+            value={form.bannerColor || "#5865F2"}
+            onChange={(e) => set("bannerColor")(e.target.value)}
+            className="h-8 w-12 rounded border"
+          />
+          {form.bannerColor && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => set("bannerColor")("")}
+            >
+              Reset warna
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Gambar diprioritaskan di atas warna. Rasio ideal ~4:1 (mis. 1200×300).
+        </p>
+      </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="name">Nama tampilan</Label>
         <Input
@@ -80,28 +176,6 @@ export function SettingsForm({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="banner">Warna banner profil</Label>
-        <div className="flex items-center gap-2">
-          <input
-            id="banner"
-            type="color"
-            value={form.bannerColor || "#5865F2"}
-            onChange={(e) => set("bannerColor")(e.target.value)}
-            className="h-9 w-14 rounded border"
-          />
-          {form.bannerColor && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => set("bannerColor")("")}
-            >
-              Reset
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="space-y-1.5">
         <Label htmlFor="bio">Bio</Label>
         <Textarea
           id="bio"
@@ -111,7 +185,7 @@ export function SettingsForm({
           placeholder="Markdown didukung."
         />
       </div>
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || uploading}>
         {busy ? "Menyimpan…" : "Simpan"}
       </Button>
     </form>

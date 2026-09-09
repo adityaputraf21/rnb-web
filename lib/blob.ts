@@ -1,15 +1,9 @@
 import { put, del } from "@vercel/blob";
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 MB
-export const ALLOWED_UPLOAD_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "application/pdf",
-  "text/plain",
-];
+export {
+  MAX_UPLOAD_BYTES,
+  ALLOWED_UPLOAD_TYPES,
+} from "@/lib/upload-limits";
 
 export async function uploadToBlob(file: File, prefix = "uploads") {
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";

@@ -31,6 +31,7 @@ model User {
   bio         String?
   website     String?
   bannerColor String?
+  bannerImage String?
   discordId   String? @unique
   role        Role    @default(USER)
   points      Int     @default(0)

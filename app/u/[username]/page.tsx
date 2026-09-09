@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Globe, Circle } from "lucide-react";
+import { Globe, Circle, Pencil, CalendarDays, Award } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
 import { initials } from "@/lib/utils";
 import { timeAgo, fullDate } from "@/lib/format";
 import { tierClass, ROLE_LABEL, ROLE_BADGE } from "@/lib/tier-style";
-import { ACHIEVEMENT_MAP } from "@/lib/achievements";
+import { ACHIEVEMENT_MAP, ACHIEVEMENTS } from "@/lib/achievements";
 
 export async function generateMetadata({
   params,
@@ -28,43 +31,74 @@ export default async function ProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
+  const me = await getCurrentUser();
+
   const user = await prisma.user.findUnique({
     where: { username: username.toLowerCase() },
     include: {
-      _count: { select: { threads: true, posts: true } },
+      _count: {
+        select: { threads: true, posts: true },
+      },
       achievements: { orderBy: { earnedAt: "desc" } },
       threads: {
         where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
-        take: 8,
-        include: { category: true },
+        take: 10,
+        include: { category: true, _count: { select: { posts: true } } },
+      },
+      posts: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: { thread: { include: { category: true } } },
       },
     },
   });
   if (!user) notFound();
 
-  const rank =
-    (await prisma.user.count({ where: { points: { gt: user.points } } })) + 1;
+  const [rank, reactionsReceived] = await Promise.all([
+    prisma.user
+      .count({ where: { points: { gt: user.points } } })
+      .then((n) => n + 1),
+    prisma.reaction.count({ where: { post: { authorId: user.id } } }),
+  ]);
+
   const online =
     !!user.lastSeenAt && Date.now() - user.lastSeenAt.getTime() < 5 * 60000;
+  const isMe = me?.id === user.id;
+  const earnedKeys = new Set(user.achievements.map((a) => a.key));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-3xl">
+      {/* Banner */}
       <div
-        className="h-24 rounded-xl"
-        style={{
-          background: user.bannerColor
-            ? `linear-gradient(135deg, ${user.bannerColor}, ${user.bannerColor}99)`
-            : "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.6))",
-        }}
-      />
-      <div className="-mt-12 flex items-end gap-4 px-1">
-        <Avatar className="h-20 w-20 border-4 border-background">
+        className="relative h-40 overflow-hidden rounded-2xl sm:h-52"
+        style={
+          user.bannerImage
+            ? {
+                backgroundImage: `url(${user.bannerImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {
+                background: `linear-gradient(135deg, ${user.bannerColor ?? "hsl(var(--primary))"}, ${
+                  user.bannerColor ? `${user.bannerColor}88` : "hsl(var(--primary)/0.55)"
+                })`,
+              }
+        }
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent" />
+      </div>
+
+      {/* Identity */}
+      <div className="relative -mt-14 flex flex-col gap-4 px-2 sm:-mt-16 sm:flex-row sm:items-end">
+        <Avatar className="h-24 w-24 border-4 border-background shadow-lg sm:h-28 sm:w-28">
           <AvatarImage src={user.image ?? undefined} />
-          <AvatarFallback className="text-xl">
+          <AvatarFallback className="text-2xl">
             {initials(user.name ?? user.username)}
           </AvatarFallback>
         </Avatar>
+
         <div className="flex-1 pb-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{user.name ?? user.username}</h1>
@@ -73,24 +107,43 @@ export default async function ProfilePage({
                 {ROLE_LABEL[user.role]}
               </Badge>
             )}
-            {online && (
-              <span className="flex items-center gap-1 text-xs text-green-500">
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${tierClass(user.tier)}`}
+            >
+              {user.tier}
+            </span>
+            {online ? (
+              <span className="flex items-center gap-1 text-xs font-medium text-green-500">
                 <Circle className="h-2 w-2 fill-current" /> online
               </span>
+            ) : (
+              user.lastSeenAt && (
+                <span className="text-xs text-muted-foreground">
+                  aktif {timeAgo(user.lastSeenAt)}
+                </span>
+              )
             )}
             {user.bannedAt && <Badge variant="destructive">Diblokir</Badge>}
           </div>
           <p className="text-sm text-muted-foreground">@{user.username}</p>
         </div>
+
+        {isMe && (
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/settings">
+              <Pencil /> Edit profil
+            </Link>
+          </Button>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 px-1 text-sm">
-        <span className={`rounded border px-2 py-0.5 text-xs ${tierClass(user.tier)}`}>
-          {user.tier}
+      {/* Meta row */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-sm text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <CalendarDays className="h-3.5 w-3.5" /> Bergabung{" "}
+          {fullDate(user.createdAt)}
         </span>
-        <span className="text-muted-foreground">
-          {user.points} poin · peringkat #{rank}
-        </span>
+        <span>Peringkat #{rank}</span>
         {user.website && (
           <a
             href={user.website}
@@ -102,27 +155,24 @@ export default async function ProfilePage({
             {user.website.replace(/^https?:\/\//, "")}
           </a>
         )}
-        {!online && user.lastSeenAt && (
-          <span className="text-xs text-muted-foreground">
-            terakhir dilihat {timeAgo(user.lastSeenAt)}
-          </span>
-        )}
       </div>
 
+      {/* Bio */}
       {user.bio && (
-        <div className="px-1">
-          <Markdown className="prose-sm">{user.bio}</Markdown>
-        </div>
+        <Card className="mt-4">
+          <CardContent className="p-4">
+            <Markdown className="prose-sm">{user.bio}</Markdown>
+          </CardContent>
+        </Card>
       )}
-      <p className="px-1 text-xs text-muted-foreground">
-        Bergabung {fullDate(user.createdAt)}
-      </p>
 
-      <div className="grid grid-cols-3 gap-3">
+      {/* Stats */}
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          ["Thread", user._count.threads],
-          ["Post", user._count.posts],
           ["Poin", user.points],
+          ["Thread", user._count.threads],
+          ["Balasan", user._count.posts],
+          ["Reaksi diterima", reactionsReceived],
         ].map(([label, val]) => (
           <Card key={label}>
             <CardContent className="p-4 text-center">
@@ -133,48 +183,87 @@ export default async function ProfilePage({
         ))}
       </div>
 
-      {user.achievements.length > 0 && (
-        <div>
-          <h2 className="mb-2 text-lg font-semibold">Achievement</h2>
-          <div className="flex flex-wrap gap-2">
-            {user.achievements.map((a) => {
-              const def = ACHIEVEMENT_MAP[a.key];
-              if (!def) return null;
-              return (
-                <div
-                  key={a.id}
-                  title={`${def.description} · ${fullDate(a.earnedAt)}`}
-                  className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-sm"
-                >
-                  <span>{def.emoji}</span>
-                  <span>{def.name}</span>
-                </div>
-              );
-            })}
-          </div>
+      {/* Achievements */}
+      <div className="mt-6">
+        <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold">
+          <Award className="h-5 w-5 text-primary" />
+          Achievement
+          <span className="text-sm font-normal text-muted-foreground">
+            {earnedKeys.size}/{ACHIEVEMENTS.length}
+          </span>
+        </h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {ACHIEVEMENTS.map((def) => {
+            const earned = earnedKeys.has(def.key);
+            return (
+              <div
+                key={def.key}
+                title={def.description}
+                className={`flex flex-col items-center gap-1 rounded-xl border p-3 text-center ${
+                  earned ? "bg-card" : "opacity-40 grayscale"
+                }`}
+              >
+                <span className="text-2xl">{def.emoji}</span>
+                <span className="text-xs font-medium">{def.name}</span>
+              </div>
+            );
+          })}
         </div>
-      )}
-
-      <div>
-        <h2 className="mb-2 text-lg font-semibold">Thread terbaru</h2>
-        <Card className="divide-y">
-          {user.threads.length === 0 && (
-            <p className="p-4 text-sm text-muted-foreground">Belum ada thread.</p>
-          )}
-          {user.threads.map((t) => (
-            <Link
-              key={t.id}
-              href={`/forum/${t.category.slug}/${t.slug}`}
-              className="block p-3 hover:bg-accent/50"
-            >
-              <p className="font-medium">{t.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {t.category.name} · {timeAgo(t.createdAt)}
-              </p>
-            </Link>
-          ))}
-        </Card>
       </div>
+
+      {/* Activity tabs */}
+      <Tabs defaultValue="threads" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="threads">Thread ({user._count.threads})</TabsTrigger>
+          <TabsTrigger value="posts">Balasan</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="threads">
+          <Card className="divide-y">
+            {user.threads.length === 0 && (
+              <p className="p-4 text-sm text-muted-foreground">Belum ada thread.</p>
+            )}
+            {user.threads.map((t) => (
+              <Link
+                key={t.id}
+                href={`/forum/${t.category.slug}/${t.slug}`}
+                className="flex items-center justify-between gap-3 p-3 hover:bg-accent/50"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{t.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t.category.name} · {timeAgo(t.createdAt)}
+                  </p>
+                </div>
+                <Badge variant="secondary">{t._count.posts} pos</Badge>
+              </Link>
+            ))}
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="posts">
+          <Card className="divide-y">
+            {user.posts.length === 0 && (
+              <p className="p-4 text-sm text-muted-foreground">Belum ada balasan.</p>
+            )}
+            {user.posts.map((p) => (
+              <Link
+                key={p.id}
+                href={`/forum/${p.thread.category.slug}/${p.thread.slug}#post-${p.id}`}
+                className="block p-3 hover:bg-accent/50"
+              >
+                <p className="text-xs text-muted-foreground">
+                  di <span className="text-foreground">{p.thread.title}</span> ·{" "}
+                  {timeAgo(p.createdAt)}
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-sm">
+                  {p.body.replace(/[#*`>_[\]!]/g, "").slice(0, 180)}
+                </p>
+              </Link>
+            ))}
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

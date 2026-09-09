@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
-import { MAX_UPLOAD_BYTES } from "@/lib/blob";
+import { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
 
 type MentionUser = { username: string; name: string | null; image: string | null };
 

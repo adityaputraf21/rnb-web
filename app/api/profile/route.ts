@@ -13,7 +13,7 @@ export async function PATCH(req: Request) {
     return res as Response;
   }
 
-  const { name, username, bio, website, bannerColor } = await req
+  const { name, username, bio, website, bannerColor, bannerImage } = await req
     .json()
     .catch(() => ({}));
   const data: Record<string, string | null> = {};
@@ -26,6 +26,9 @@ export async function PATCH(req: Request) {
   }
   if (typeof bannerColor === "string")
     data.bannerColor = /^#[0-9a-f]{6}$/i.test(bannerColor) ? bannerColor : null;
+  if (typeof bannerImage === "string") {
+    data.bannerImage = /^https:\/\//.test(bannerImage) ? bannerImage : null;
+  }
 
   if (typeof username === "string") {
     const slug = toUsernameSlug(username);
@@ -56,6 +59,7 @@ export async function PATCH(req: Request) {
       bio: true,
       website: true,
       bannerColor: true,
+      bannerImage: true,
     },
   });
   return NextResponse.json(updated);

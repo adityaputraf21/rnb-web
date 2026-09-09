@@ -14,6 +14,7 @@ export default async function SettingsPage() {
       bio: true,
       website: true,
       bannerColor: true,
+      bannerImage: true,
     },
   });
 
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
           bio: user?.bio ?? "",
           website: user?.website ?? "",
           bannerColor: user?.bannerColor ?? "",
+          bannerImage: user?.bannerImage ?? "",
         }}
       />
     </div>
