@@ -2,7 +2,17 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Paperclip, Send, Loader2, FileText } from "lucide-react";
+import {
+  ArrowLeft,
+  Paperclip,
+  Send,
+  Loader2,
+  FileText,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,6 +28,8 @@ type Msg = {
   createdAt: string;
   mine: boolean;
   read: boolean;
+  edited: boolean;
+  deleted: boolean;
 };
 
 export function Chat({
@@ -33,8 +45,39 @@ export function Chat({
   const [text, setText] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
+  const [editId, setEditId] = React.useState<string | null>(null);
+  const [editText, setEditText] = React.useState("");
   const endRef = React.useRef<HTMLDivElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  async function saveEdit(id: string) {
+    if (!editText.trim()) return;
+    const res = await fetch(`/api/dm/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: editText }),
+    });
+    if (!res.ok) return toast.error((await res.json()).error ?? "gagal");
+    setMessages((m) =>
+      m.map((x) =>
+        x.id === id ? { ...x, body: editText.trim(), edited: true } : x,
+      ),
+    );
+    setEditId(null);
+  }
+
+  async function del(id: string) {
+    if (!confirm("Hapus pesan ini?")) return;
+    const res = await fetch(`/api/dm/${id}`, { method: "DELETE" });
+    if (!res.ok) return toast.error("gagal");
+    setMessages((m) =>
+      m.map((x) =>
+        x.id === id
+          ? { ...x, deleted: true, body: "", mediaUrl: null, mediaType: null }
+          : x,
+      ),
+    );
+  }
 
   const scrollDown = React.useCallback(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -134,16 +177,65 @@ export function Chat({
         {messages.map((m) => (
           <div
             key={m.id}
-            className={cn("flex", m.mine ? "justify-end" : "justify-start")}
+            className={cn(
+              "group flex items-center gap-1",
+              m.mine ? "justify-end" : "justify-start",
+            )}
           >
+            {m.mine && !m.deleted && editId !== m.id && (
+              <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
+                {m.body && (
+                  <button
+                    className="p-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setEditId(m.id);
+                      setEditText(m.body);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  className="p-1 text-muted-foreground hover:text-destructive"
+                  onClick={() => del(m.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
             <div
               className={cn(
                 "max-w-[75%] rounded-2xl px-3 py-1.5 text-sm",
-                m.mine
-                  ? "rounded-br-sm bg-primary text-primary-foreground"
-                  : "rounded-bl-sm bg-muted",
+                m.deleted
+                  ? "border bg-transparent italic text-muted-foreground"
+                  : m.mine
+                    ? "rounded-br-sm bg-primary text-primary-foreground"
+                    : "rounded-bl-sm bg-muted",
               )}
             >
+              {m.deleted ? (
+                <p>Pesan ini dihapus</p>
+              ) : editId === m.id ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveEdit(m.id);
+                      if (e.key === "Escape") setEditId(null);
+                    }}
+                    className="w-48 rounded bg-white/20 px-2 py-0.5 text-sm outline-none"
+                  />
+                  <button onClick={() => saveEdit(m.id)}>
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setEditId(null)}>
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <>
               {m.mediaUrl &&
                 (m.mediaType === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -174,8 +266,11 @@ export function Chat({
                 )}
               >
                 {timeAgo(m.createdAt)}
+                {m.edited && " · disunting"}
                 {m.mine && (m.read ? " · dibaca" : " · terkirim")}
               </p>
+                </>
+              )}
             </div>
           </div>
         ))}

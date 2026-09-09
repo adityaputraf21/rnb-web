@@ -22,7 +22,6 @@ export default async function AdminSitePage() {
           maintenanceMode: cfg.maintenanceMode,
           webhookUsername: cfg.webhookUsername,
           webhookAvatar: cfg.webhookAvatar,
-          bannedWords: cfg.bannedWords,
         }}
       />
     </div>

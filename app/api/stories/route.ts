@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { apiWriter, getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { blockedIdsFor } from "@/lib/blocks";
-import { assertClean } from "@/lib/automod";
 
 export const runtime = "nodejs";
 
@@ -98,12 +97,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "media wajib" }, { status: 400 });
   const type = ["image", "video"].includes(mediaType) ? mediaType : "image";
   const cap = typeof caption === "string" ? caption.trim().slice(0, 200) : "";
-
-  try {
-    await assertClean(cap);
-  } catch (res) {
-    return res as Response;
-  }
 
   const story = await prisma.story.create({
     data: {

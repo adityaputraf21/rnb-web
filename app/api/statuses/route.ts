@@ -5,7 +5,6 @@ import { awardPoints } from "@/lib/points";
 import { notifyMentions } from "@/lib/notifications";
 import { checkAchievements } from "@/lib/achievements";
 import { assertPostRate } from "@/lib/ratelimit";
-import { assertClean } from "@/lib/automod";
 import { blockedIdsFor } from "@/lib/blocks";
 import { shapeStatus, statusInclude } from "@/lib/status-shape";
 
@@ -88,12 +87,6 @@ export async function POST(req: Request) {
   }
   if (text.length > 2000)
     return NextResponse.json({ error: "maksimal 2000 karakter" }, { status: 400 });
-
-  try {
-    await assertClean(text);
-  } catch (res) {
-    return res as Response;
-  }
 
   const pollOptions: string[] =
     poll && Array.isArray(poll.options)

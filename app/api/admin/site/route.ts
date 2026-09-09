@@ -32,8 +32,6 @@ export async function PATCH(req: Request) {
     data.webhookAvatar = /^https:\/\//.test(b.webhookAvatar)
       ? b.webhookAvatar
       : null;
-  if (typeof b.bannedWords === "string")
-    data.bannedWords = b.bannedWords.trim().slice(0, 4000) || null;
 
   const cfg = await prisma.siteConfig.upsert({
     where: { id: "singleton" },

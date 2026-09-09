@@ -3,7 +3,6 @@ import { apiWriter, apiUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateConversation, canDM, convPair } from "@/lib/dm";
 import { notify } from "@/lib/notifications";
-import { assertClean } from "@/lib/automod";
 
 export const runtime = "nodejs";
 
@@ -62,6 +61,8 @@ export async function GET(
       createdAt: m.createdAt.toISOString(),
       mine: m.senderId === me.id,
       read: !!m.readAt,
+      edited: !!m.editedAt,
+      deleted: !!m.deletedAt,
     })),
   });
 }
@@ -90,12 +91,6 @@ export async function POST(
   const hasMedia = typeof mediaUrl === "string" && /^https:\/\//.test(mediaUrl);
   if (!text && !hasMedia)
     return NextResponse.json({ error: "pesan kosong" }, { status: 400 });
-
-  try {
-    await assertClean(text);
-  } catch (res) {
-    return res as Response;
-  }
 
   const conv = await getOrCreateConversation(me.id, other.id);
   const msg = await prisma.message.create({
@@ -129,5 +124,7 @@ export async function POST(
     createdAt: msg.createdAt.toISOString(),
     mine: true,
     read: false,
+    edited: false,
+    deleted: false,
   });
 }

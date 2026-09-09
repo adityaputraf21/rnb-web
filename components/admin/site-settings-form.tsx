@@ -19,7 +19,6 @@ type Cfg = {
   maintenanceMode: boolean;
   webhookUsername: string;
   webhookAvatar: string | null;
-  bannedWords: string | null;
 };
 
 export function SiteSettingsForm({ initial }: { initial: Cfg }) {
@@ -172,17 +171,6 @@ export function SiteSettingsForm({ initial }: { initial: Cfg }) {
             }}
           />
         </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="bw">Kata terlarang (auto-mod)</Label>
-        <Textarea
-          id="bw"
-          value={cfg.bannedWords ?? ""}
-          onChange={(e) => set("bannedWords", e.target.value)}
-          placeholder="Satu kata/frasa per baris. Konten yang mengandungnya akan ditolak."
-          className="min-h-24 font-mono text-xs"
-        />
       </div>
 
       <label className="flex items-center gap-2 text-sm">

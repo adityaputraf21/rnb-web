@@ -14,7 +14,7 @@ export default async function LoginPage({
 }) {
   const user = await getCurrentUser();
   const { callbackUrl } = await searchParams;
-  if (user) redirect(callbackUrl || "/forum");
+  if (user) redirect(callbackUrl || "/feed");
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-sm flex-col justify-center">
@@ -30,7 +30,7 @@ export default async function LoginPage({
           <SignInButton
             size="lg"
             className="w-full"
-            callbackUrl={callbackUrl || "/forum"}
+            callbackUrl={callbackUrl || "/feed"}
           />
           <p className="text-xs text-muted-foreground">
             Dengan masuk kamu setuju menjaga forum tetap sehat.{" "}

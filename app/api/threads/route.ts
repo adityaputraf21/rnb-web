@@ -8,7 +8,6 @@ import { subscribe } from "@/lib/subscriptions";
 import { checkAchievements } from "@/lib/achievements";
 import { assertPostRate } from "@/lib/ratelimit";
 import { getSiteConfig } from "@/lib/site-config";
-import { assertClean } from "@/lib/automod";
 import { sendDiscordWebhook, forumThreadEmbed } from "@/lib/discord";
 import { firstImageUrl, toPlainExcerpt } from "@/lib/md-extract";
 
@@ -40,12 +39,6 @@ export async function POST(req: Request) {
       { error: "judul (min 4 karakter) dan isi wajib diisi" },
       { status: 400 },
     );
-  }
-
-  try {
-    await assertClean(`${title}\n${body}`);
-  } catch (res) {
-    return res as Response;
   }
 
   const category = await prisma.category.findUnique({ where: { id: categoryId } });

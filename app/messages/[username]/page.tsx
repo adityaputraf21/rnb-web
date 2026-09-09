@@ -62,6 +62,8 @@ export default async function ChatPage({
           createdAt: m.createdAt.toISOString(),
           mine: m.senderId === me.id,
           read: !!m.readAt,
+          edited: !!m.editedAt,
+          deleted: !!m.deletedAt,
         }))}
       />
     </div>
