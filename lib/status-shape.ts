@@ -37,7 +37,7 @@ type Row = {
   pinned: boolean;
   createdAt: Date;
   editedAt: Date | null;
-  images: { url: string }[];
+  images: { url: string; type?: string; name?: string }[];
   likes?: { id: string }[];
   reactions?: { emoji: string; userId: string }[];
   _count: { likes: number; comments: number };
@@ -95,7 +95,11 @@ export function shapeStatus(
     pinned: s.pinned,
     createdAt: s.createdAt.toISOString(),
     editedAt: s.editedAt?.toISOString() ?? null,
-    images: s.images.map((i) => i.url),
+    media: s.images.map((i) => ({
+      url: i.url,
+      type: i.type ?? "image",
+      name: i.name ?? "",
+    })),
     likeCount: s._count.likes,
     commentCount: s._count.comments,
     liked: !!s.likes && s.likes.length > 0,

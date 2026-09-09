@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { MessagesSquare } from "lucide-react";
+import { MessagesSquare, Mail } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { getSiteConfig } from "@/lib/site-config";
+import { unreadDMCount } from "@/lib/dm";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -20,6 +21,7 @@ const NAV = [
 
 export async function SiteHeader() {
   const [user, cfg] = await Promise.all([getCurrentUser(), getSiteConfig()]);
+  const dmUnread = user ? await unreadDMCount(user.id).catch(() => 0) : 0;
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
@@ -41,6 +43,22 @@ export async function SiteHeader() {
           <ThemeToggle />
           {user ? (
             <>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Pesan"
+                className="relative"
+                asChild
+              >
+                <Link href="/messages">
+                  <Mail />
+                  {dmUnread > 0 && (
+                    <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                      {dmUnread > 9 ? "9+" : dmUnread}
+                    </span>
+                  )}
+                </Link>
+              </Button>
               <NotificationsBell />
               <UserMenu user={user} />
             </>

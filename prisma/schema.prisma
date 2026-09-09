@@ -74,6 +74,11 @@ model User {
   blockedBy Block[]  @relation("blocked")
   warnings         Warning[] @relation("warned")
   warningsIssued   Warning[] @relation("warner")
+  conversationsA Conversation[] @relation("convA")
+  conversationsB Conversation[] @relation("convB")
+  messagesSent   Message[]
+  stories        Story[]
+  storyViews     StoryView[]
 
   notifications      Notification[] @relation("recipient")
   actedNotifications Notification[] @relation("actor")
@@ -350,6 +355,8 @@ model StatusImage {
   id       String @id @default(cuid())
   statusId String
   url      String
+  type     String @default("image") // image | video | audio | file
+  name     String @default("")
   position Int    @default(0)
 
   status Status @relation(fields: [statusId], references: [id], onDelete: Cascade)
@@ -435,6 +442,76 @@ model PollVote {
 }
 
 /* ========================================================================== */
+/*  Direct Messages                                                            */
+/* ========================================================================== */
+
+model Conversation {
+  id            String   @id @default(cuid())
+  aId           String // id user secara leksikografis lebih kecil
+  bId           String
+  lastMessageAt DateTime @default(now())
+  aArchived     Boolean  @default(false)
+  bArchived     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  a        User      @relation("convA", fields: [aId], references: [id], onDelete: Cascade)
+  b        User      @relation("convB", fields: [bId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([aId, bId])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String?
+  body           String
+  mediaUrl       String?
+  mediaType      String?
+  createdAt      DateTime  @default(now())
+  readAt         DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+}
+
+/* ========================================================================== */
+/*  Stories (ephemeral, 24 jam)                                                */
+/* ========================================================================== */
+
+model Story {
+  id        String   @id @default(cuid())
+  authorId  String?
+  mediaUrl  String
+  mediaType String // image | video
+  caption   String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  author User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  views  StoryView[]
+
+  @@index([expiresAt])
+  @@index([authorId, createdAt])
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  storyId   String
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  story  Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@index([storyId])
+}
+
+/* ========================================================================== */
 /*  Achievements                                                               */
 /* ========================================================================== */
 
@@ -462,6 +539,7 @@ enum NotificationType {
   SYSTEM
   ACHIEVEMENT
   FOLLOW
+  DM
 }
 
 model Notification {

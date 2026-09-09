@@ -6,6 +6,7 @@ import { blockedIdsFor } from "@/lib/blocks";
 import { Button } from "@/components/ui/button";
 import { StatusComposer } from "@/components/feed/status-composer";
 import { FeedList } from "@/components/feed/feed-list";
+import { StoriesBar } from "@/components/stories/stories-bar";
 import { shapeStatus, statusInclude } from "@/lib/status-shape";
 
 export const metadata = { title: "Feed" };
@@ -73,6 +74,13 @@ export default async function FeedPage({
         <Newspaper className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Feed</h1>
       </div>
+
+      <StoriesBar
+        loggedIn={!!user}
+        myAvatar={user?.image}
+        myUsername={user?.username}
+        myName={user?.name}
+      />
 
       {user ? (
         <StatusComposer user={user} />

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
+import { uploadFile } from "@/lib/upload-client";
 
 type Cfg = {
   siteName: string;
@@ -33,16 +33,10 @@ export function SiteSettingsForm({ initial }: { initial: Cfg }) {
 
   async function uploadAvatar(file: File) {
     if (!file.type.startsWith("image/")) return toast.error("Harus gambar");
-    if (file.size > MAX_UPLOAD_BYTES)
-      return toast.error(`Maks ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB`);
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "gagal");
-      set("webhookAvatar", data.url);
+      const up = await uploadFile(file, { prefix: "webhook" });
+      set("webhookAvatar", up.url);
       toast.success("Avatar terunggah — jangan lupa Simpan");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal");

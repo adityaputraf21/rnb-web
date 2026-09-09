@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
+import { uploadFile } from "@/lib/upload-client";
 
 type Form = {
   name: string;
@@ -30,16 +30,10 @@ export function SettingsForm({ initial }: { initial: Form }) {
 
   async function uploadBanner(file: File) {
     if (!file.type.startsWith("image/")) return toast.error("Harus file gambar");
-    if (file.size > MAX_UPLOAD_BYTES)
-      return toast.error(`Maksimal ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB`);
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "gagal upload");
-      setForm((f) => ({ ...f, bannerImage: data.url }));
+      const up = await uploadFile(file, { prefix: "banner" });
+      setForm((f) => ({ ...f, bannerImage: up.url }));
       toast.success("Banner terunggah — jangan lupa Simpan");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal");

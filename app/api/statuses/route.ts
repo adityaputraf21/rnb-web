@@ -58,15 +58,31 @@ export async function POST(req: Request) {
     return res as Response;
   }
 
-  const { body, images, poll } = await req.json().catch(() => ({}));
+  const { body, media, images, poll } = await req.json().catch(() => ({}));
   const text = typeof body === "string" ? body.trim() : "";
-  const imgs: string[] = Array.isArray(images)
-    ? images.filter((u) => typeof u === "string" && /^https:\/\//.test(u)).slice(0, 4)
-    : [];
 
-  if (text.length === 0 && imgs.length === 0 && !poll) {
+  // media: [{url, type, name}] baru; images: string[] kompat lama
+  type MediaIn = { url: string; type: string; name?: string };
+  const rawMedia: MediaIn[] = Array.isArray(media)
+    ? media
+    : Array.isArray(images)
+      ? images.map((u: string) => ({ url: u, type: "image", name: "" }))
+      : [];
+  const items = rawMedia
+    .filter((m) => m && typeof m.url === "string" && /^https:\/\//.test(m.url))
+    .slice(0, 20)
+    .map((m, i) => ({
+      url: m.url,
+      type: ["image", "video", "audio", "file"].includes(m.type)
+        ? m.type
+        : "file",
+      name: (m.name ?? "").slice(0, 200),
+      position: i,
+    }));
+
+  if (text.length === 0 && items.length === 0 && !poll) {
     return NextResponse.json(
-      { error: "tulis sesuatu atau tambahkan gambar" },
+      { error: "tulis sesuatu atau tambahkan media" },
       { status: 400 },
     );
   }
@@ -91,7 +107,7 @@ export async function POST(req: Request) {
     data: {
       authorId: user.id,
       body: text,
-      images: { create: imgs.map((url, i) => ({ url, position: i })) },
+      images: { create: items },
       ...(pollOptions.length >= 2 && poll?.question
         ? {
             poll: {

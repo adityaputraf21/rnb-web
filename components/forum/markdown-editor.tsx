@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
-import { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
+import { uploadFile } from "@/lib/upload-client";
 
 type MentionUser = { username: string; name: string | null; image: string | null };
 
@@ -45,22 +45,12 @@ export function MarkdownEditor({
     });
   }
 
-  async function uploadFile(file: File) {
-    if (file.size > MAX_UPLOAD_BYTES) {
-      toast.error(`Maksimal ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB`);
-      return;
-    }
+  async function handleUploadFile(file: File) {
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "gagal upload");
-      const isImage = (data.contentType ?? "").startsWith("image/");
-      insertAtCursor(
-        `${isImage ? "!" : ""}[${data.name}](${data.url})\n`,
-      );
+      const up = await uploadFile(file, { prefix: "forum" });
+      const isImage = up.kind === "image";
+      insertAtCursor(`${isImage ? "!" : ""}[${up.name}](${up.url})\n`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal upload");
     } finally {
@@ -72,7 +62,7 @@ export function MarkdownEditor({
     const file = Array.from(e.clipboardData.files)[0];
     if (file) {
       e.preventDefault();
-      uploadFile(file);
+      handleUploadFile(file);
     }
   }
 
@@ -80,7 +70,7 @@ export function MarkdownEditor({
     const file = Array.from(e.dataTransfer.files)[0];
     if (file) {
       e.preventDefault();
-      uploadFile(file);
+      handleUploadFile(file);
     }
   }
 
@@ -144,11 +134,11 @@ export function MarkdownEditor({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*,application/pdf,text/plain"
+          accept="image/*,video/*,audio/*,application/pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) uploadFile(f);
+            if (f) handleUploadFile(f);
             e.target.value = "";
           }}
         />

@@ -169,11 +169,18 @@ export default async function ProfilePage({
             </Link>
           </Button>
         ) : (
-          <FollowButton
-            username={user.username}
-            initialFollowing={!!iFollow}
-            loggedIn={!!me}
-          />
+          <div className="flex gap-2">
+            {me && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/messages/${user.username}`}>Pesan</Link>
+              </Button>
+            )}
+            <FollowButton
+              username={user.username}
+              initialFollowing={!!iFollow}
+              loggedIn={!!me}
+            />
+          </div>
         )}
       </div>
 

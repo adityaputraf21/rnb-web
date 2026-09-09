@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Markdown } from "@/components/markdown";
-import { ImageGrid } from "@/components/feed/image-grid";
+import { MediaGrid } from "@/components/feed/media-grid";
 import { CommentSection, type CommentView } from "@/components/feed/comment-section";
 import { ReactionBar } from "@/components/reaction-bar";
 import { ReportButton } from "@/components/forum/report-button";
@@ -43,7 +43,7 @@ export type StatusView = {
   pinned: boolean;
   createdAt: string;
   editedAt: string | null;
-  images: string[];
+  media: { url: string; type: string; name: string }[];
   likeCount: number;
   commentCount: number;
   liked: boolean;
@@ -260,8 +260,8 @@ export function StatusCard({
         )
       )}
 
-      <ImageGrid urls={status.images} />
-      {link && status.images.length === 0 && <LinkPreview url={link} />}
+      <MediaGrid media={status.media} />
+      {link && status.media.length === 0 && <LinkPreview url={link} />}
       {status.poll && <Poll poll={status.poll} loggedIn={!!currentUsername} />}
 
       <div className="mt-2 flex flex-wrap items-center gap-1 text-muted-foreground">
