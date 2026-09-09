@@ -1,0 +1,56 @@
+// Prisma schema — sesuaikan datasource kalau kamu pakai provider lain.
+// Untuk Vercel: pakai Postgres (Neon / Vercel Postgres / Supabase).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")       // pooled — dipakai runtime (Vercel serverless)
+  directUrl = env("DATABASE_URL_UNPOOLED") // direct — dipakai `prisma db push` / migrate
+}
+
+model Announcement {
+  id         String   @id @default(cuid())
+  title      String
+  body       String
+  source     String   @default("web") // "web" | "discord"
+  authorName String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Event {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  startsAt      DateTime?
+  dateLabel     String // string tanggal asli dari command / form
+  source        String    @default("web")
+  createdByName String?
+  createdAt     DateTime  @default(now())
+
+  @@index([startsAt])
+}
+
+model ForumThread {
+  id           String   @id @default(cuid())
+  title        String
+  body         String
+  authorName   String
+  categoryName String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model LeaderboardEntry {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  points    Int      @default(0)
+  tier      String   @default("Bronze")
+  rank      Int?
+  updatedAt DateTime @updatedAt
+}
