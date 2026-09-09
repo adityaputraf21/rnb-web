@@ -1,22 +1,8 @@
 import type { MetadataRoute } from "next";
 
-const base =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://rnb-web.vercel.app";
-
+/** Komunitas tertutup — jangan di-crawl. */
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      userAgent: "*",
-      allow: "/",
-      disallow: [
-        "/admin",
-        "/settings",
-        "/api",
-        "/notifications",
-        "/bookmarks",
-        "/messages",
-      ],
-    },
-    sitemap: `${base}/sitemap.xml`,
+    rules: { userAgent: "*", disallow: "/" },
   };
 }

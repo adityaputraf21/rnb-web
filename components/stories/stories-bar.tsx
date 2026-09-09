@@ -6,24 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { initials, cn } from "@/lib/utils";
 import { StoryComposer } from "@/components/stories/story-composer";
 import { StoryViewer } from "@/components/stories/story-viewer";
+import type { StoryGroup } from "@/components/stories/types";
 
-export type StoryItem = {
-  id: string;
-  mediaUrl: string;
-  mediaType: string;
-  caption: string | null;
-  createdAt: string;
-  viewed: boolean;
-  views: number;
-  mine: boolean;
-};
-export type StoryGroup = {
-  username: string;
-  name: string | null;
-  image: string | null;
-  allViewed: boolean;
-  items: StoryItem[];
-};
+export type { StoryGroup, StoryItem } from "@/components/stories/types";
 
 export function StoriesBar({
   loggedIn,

@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const me = await getCurrentUser();
+  if (!me) return NextResponse.json([], { status: 401 });
   const now = new Date();
   const hidden = me ? await blockedIdsFor(me.id) : new Set<string>();
 

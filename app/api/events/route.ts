@@ -7,6 +7,9 @@ import { firstImageUrl, toPlainExcerpt } from "@/lib/md-extract";
 export const runtime = "nodejs";
 
 export async function GET() {
+  const { getCurrentUser } = await import("@/lib/auth-helpers");
+  if (!(await getCurrentUser()))
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const items = await prisma.event.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,

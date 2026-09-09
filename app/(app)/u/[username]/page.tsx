@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
 import { StatusCard } from "@/components/feed/status-card";
+import { ProfileStoryRing } from "@/components/stories/profile-story-ring";
 import { shapeStatus, statusInclude } from "@/lib/status-shape";
 import { hasRole } from "@/lib/auth-helpers";
 import { FollowButton } from "@/components/follow-button";
@@ -126,12 +127,11 @@ export default async function ProfilePage({
 
       {/* Identity */}
       <div className="relative -mt-14 flex flex-col gap-4 px-2 sm:-mt-16 sm:flex-row sm:items-end">
-        <Avatar className="h-24 w-24 border-4 border-background shadow-lg sm:h-28 sm:w-28">
-          <AvatarImage src={user.image ?? undefined} />
-          <AvatarFallback className="text-2xl">
-            {initials(user.name ?? user.username)}
-          </AvatarFallback>
-        </Avatar>
+        <ProfileStoryRing
+          username={user.username}
+          name={user.name}
+          image={user.image}
+        />
 
         <div className="flex-1 pb-1">
           <div className="flex flex-wrap items-center gap-2">

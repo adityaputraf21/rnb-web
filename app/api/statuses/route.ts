@@ -18,6 +18,7 @@ export async function GET(req: Request) {
   const filter = sp.get("filter"); // "following"
   const sort = sp.get("sort"); // "top"
   const me = await getCurrentUser();
+  if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   let authorFilter: { authorId?: { in: string[] } | { notIn: string[] } } = {};
   if (filter === "following" && me) {

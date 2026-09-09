@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth-helpers";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  if (!(await getCurrentUser()))
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return NextResponse.json({ threads: [], posts: [] });
 

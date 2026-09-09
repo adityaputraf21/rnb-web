@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { initials, cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
-import type { StoryGroup } from "@/components/stories/stories-bar";
+import type { StoryGroup } from "@/components/stories/types";
 
 const IMAGE_MS = 5000;
 
@@ -24,9 +24,19 @@ export function StoryViewer({
   const [gi, setGi] = React.useState(startGroup);
   const [si, setSi] = React.useState(0);
   const [progress, setProgress] = React.useState(0);
+  const [viewers, setViewers] = React.useState<
+    { username: string; name: string | null; image: string | null; at: string }[] | null
+  >(null);
   const group = groups[gi];
   const story = group?.items[si];
   const timerRef = React.useRef<number | null>(null);
+  const paused = viewers !== null;
+
+  async function openViewers() {
+    if (!story) return;
+    const res = await fetch(`/api/stories/${story.id}/views`);
+    setViewers(res.ok ? await res.json() : []);
+  }
 
   const next = React.useCallback(() => {
     if (!group) return;
@@ -56,8 +66,8 @@ export function StoryViewer({
     if (!story.viewed && !story.mine) onViewed(story.id);
     fetch(`/api/stories/${story.id}/view`, { method: "POST" }).catch(() => {});
 
-    if (story.mediaType === "image") {
-      const start = Date.now();
+    if (story.mediaType === "image" && !paused) {
+      const start = Date.now() - progress * IMAGE_MS;
       timerRef.current = window.setInterval(() => {
         const p = Math.min(1, (Date.now() - start) / IMAGE_MS);
         setProgress(p);
@@ -70,7 +80,8 @@ export function StoryViewer({
         if (timerRef.current) clearInterval(timerRef.current);
       };
     }
-  }, [story, next, onViewed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [story, next, onViewed, paused]);
 
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -122,9 +133,12 @@ export function StoryViewer({
           <div className="ml-auto flex items-center gap-2">
             {story.mine && (
               <>
-                <span className="flex items-center gap-1 text-xs">
+                <button
+                  onClick={openViewers}
+                  className="flex items-center gap-1 text-xs hover:underline"
+                >
                   <Eye className="h-4 w-4" /> {story.views}
-                </span>
+                </button>
                 <button onClick={del}>
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -141,9 +155,16 @@ export function StoryViewer({
           {story.mediaType === "video" ? (
             <video
               key={story.id}
+              ref={(el) => {
+                if (el) {
+                  if (paused) el.pause();
+                  else el.play().catch(() => {});
+                }
+              }}
               src={story.mediaUrl}
               className="max-h-full max-w-full"
               autoPlay
+              playsInline
               controls={false}
               onEnded={next}
               onTimeUpdate={(e) => {
@@ -194,6 +215,44 @@ export function StoryViewer({
         >
           <ChevronRight />
         </button>
+
+        {viewers !== null && (
+          <div
+            className="absolute inset-x-0 bottom-0 z-20 max-h-[55%] overflow-y-auto rounded-t-2xl bg-background p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="font-semibold">
+                Dilihat {viewers.length} orang
+              </h4>
+              <button onClick={() => setViewers(null)}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {viewers.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Belum ada yang lihat.
+              </p>
+            )}
+            <div className="space-y-1">
+              {viewers.map((v) => (
+                <div key={v.username} className="flex items-center gap-3 py-1">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={v.image ?? undefined} />
+                    <AvatarFallback>{initials(v.name ?? v.username)}</AvatarFallback>
+                  </Avatar>
+                  <span className="flex-1 text-sm">
+                    {v.name ?? v.username}{" "}
+                    <span className="text-muted-foreground">@{v.username}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {timeAgo(v.at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

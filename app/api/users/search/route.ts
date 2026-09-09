@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth-helpers";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  if (!(await getCurrentUser())) return NextResponse.json([]);
   const q = new URL(req.url).searchParams.get("q")?.trim().toLowerCase() ?? "";
   if (q.length < 1) return NextResponse.json([]);
 
