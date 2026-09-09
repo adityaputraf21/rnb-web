@@ -1,10 +1,8 @@
-import { Megaphone, Pin } from "lucide-react";
+import { Megaphone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasRole } from "@/lib/auth-helpers";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Markdown } from "@/components/markdown";
 import { CreateAnnouncementDialog } from "@/components/create-announcement-dialog";
+import { AnnouncementItem } from "@/components/announcement-item";
 import { fullDate } from "@/lib/format";
 
 export const metadata = { title: "Pengumuman" };
@@ -12,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AnnouncementsPage() {
   const user = await getCurrentUser();
+  const canManage = hasRole(user, "MODERATOR");
   const items = await prisma.announcement.findMany({
     orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
     take: 50,
@@ -25,7 +24,7 @@ export default async function AnnouncementsPage() {
           <Megaphone className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold">Pengumuman</h1>
         </div>
-        {hasRole(user, "MODERATOR") && <CreateAnnouncementDialog />}
+        {canManage && <CreateAnnouncementDialog />}
       </div>
 
       {items.length === 0 && (
@@ -34,23 +33,19 @@ export default async function AnnouncementsPage() {
 
       <div className="space-y-4">
         {items.map((a) => (
-          <Card key={a.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {a.pinned && <Pin className="h-4 w-4 text-primary" />}
-                {a.title}
-                <Badge variant="secondary" className="ml-auto">
-                  {a.source === "discord" ? "via Discord" : "web"}
-                </Badge>
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {a.author?.name ?? a.authorName ?? "Tim"} · {fullDate(a.createdAt)}
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Markdown>{a.body}</Markdown>
-            </CardContent>
-          </Card>
+          <AnnouncementItem
+            key={a.id}
+            canManage={canManage}
+            a={{
+              id: a.id,
+              title: a.title,
+              body: a.body,
+              pinned: a.pinned,
+              source: a.source,
+              authorName: a.author?.name ?? a.authorName,
+              createdLabel: fullDate(a.createdAt),
+            }}
+          />
         ))}
       </div>
     </div>
