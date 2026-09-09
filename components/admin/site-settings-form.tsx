@@ -19,6 +19,12 @@ type Cfg = {
   maintenanceMode: boolean;
   webhookUsername: string;
   webhookAvatar: string | null;
+  blogEnabled: boolean;
+  questsEnabled: boolean;
+  requireGuild: boolean;
+  discordGuildId: string | null;
+  discordModRoleId: string | null;
+  discordAdminRoleId: string | null;
 };
 
 export function SiteSettingsForm({ initial }: { initial: Cfg }) {
@@ -189,6 +195,70 @@ export function SiteSettingsForm({ initial }: { initial: Cfg }) {
         />
         Mode maintenance (user biasa tidak bisa posting)
       </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={cfg.blogEnabled}
+          onChange={(e) => set("blogEnabled", e.target.checked)}
+        />
+        Blog aktif
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={cfg.questsEnabled}
+          onChange={(e) => set("questsEnabled", e.target.checked)}
+        />
+        Quest aktif
+      </label>
+
+      {/* Integrasi server Discord */}
+      <div className="space-y-3 rounded-xl border p-4">
+        <h2 className="text-sm font-semibold">Integrasi server Discord</h2>
+        <p className="text-xs text-muted-foreground">
+          Isi ID server & role Discord (aktifkan Developer Mode di Discord →
+          klik kanan → Salin ID).
+        </p>
+        <div className="space-y-1.5">
+          <Label htmlFor="gid">Guild / Server ID</Label>
+          <Input
+            id="gid"
+            value={cfg.discordGuildId ?? ""}
+            onChange={(e) => set("discordGuildId", e.target.value)}
+            placeholder="123456789012345678"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={cfg.requireGuild}
+            onChange={(e) => set("requireGuild", e.target.checked)}
+          />
+          Wajib jadi anggota server ini untuk bisa login
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="mrid">Role ID → Moderator</Label>
+            <Input
+              id="mrid"
+              value={cfg.discordModRoleId ?? ""}
+              onChange={(e) => set("discordModRoleId", e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="arid">Role ID → Admin</Label>
+            <Input
+              id="arid"
+              value={cfg.discordAdminRoleId ?? ""}
+              onChange={(e) => set("discordAdminRoleId", e.target.value)}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Sinkron otomatis saat user login (hanya menaikkan role, tidak
+          menurunkan; OWNER tak tersentuh).
+        </p>
+      </div>
 
       <Button type="submit" disabled={busy || uploading}>
         {busy ? "Menyimpan…" : "Simpan setelan"}

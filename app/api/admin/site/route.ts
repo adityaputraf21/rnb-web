@@ -32,6 +32,17 @@ export async function PATCH(req: Request) {
     data.webhookAvatar = /^https:\/\//.test(b.webhookAvatar)
       ? b.webhookAvatar
       : null;
+  if (typeof b.blogEnabled === "boolean") data.blogEnabled = b.blogEnabled;
+  if (typeof b.questsEnabled === "boolean") data.questsEnabled = b.questsEnabled;
+  if (typeof b.requireGuild === "boolean") data.requireGuild = b.requireGuild;
+  for (const k of [
+    "discordGuildId",
+    "discordModRoleId",
+    "discordAdminRoleId",
+  ] as const) {
+    if (typeof b[k] === "string")
+      data[k] = b[k].trim().replace(/[^0-9]/g, "").slice(0, 25) || null;
+  }
 
   const cfg = await prisma.siteConfig.upsert({
     where: { id: "singleton" },

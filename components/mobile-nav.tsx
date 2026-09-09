@@ -11,6 +11,8 @@ const NAV = [
   { href: "/feed", label: "Feed" },
   { href: "/explore", label: "Jelajah" },
   { href: "/forum", label: "Forum" },
+  { href: "/blog", label: "Blog" },
+  { href: "/quests", label: "Quest" },
   { href: "/messages", label: "Pesan" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/events", label: "Event" },

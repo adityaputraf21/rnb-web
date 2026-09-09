@@ -11,6 +11,12 @@ export type SiteConfig = {
   maintenanceMode: boolean;
   webhookUsername: string;
   webhookAvatar: string | null;
+  blogEnabled: boolean;
+  questsEnabled: boolean;
+  requireGuild: boolean;
+  discordGuildId: string | null;
+  discordModRoleId: string | null;
+  discordAdminRoleId: string | null;
 };
 
 const DEFAULTS: SiteConfig = {
@@ -23,6 +29,12 @@ const DEFAULTS: SiteConfig = {
   maintenanceMode: false,
   webhookUsername: "RnB",
   webhookAvatar: null,
+  blogEnabled: true,
+  questsEnabled: true,
+  requireGuild: false,
+  discordGuildId: null,
+  discordModRoleId: null,
+  discordAdminRoleId: null,
 };
 
 /**

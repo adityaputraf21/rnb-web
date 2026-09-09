@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { initials } from "@/lib/utils";
 import { uploadFile, type Uploaded } from "@/lib/upload-client";
+import { GifPicker } from "@/components/gif-picker";
 import {
   PollComposer,
   pollPayload,
@@ -133,35 +134,50 @@ export function StatusComposer({
           <PollComposer value={poll} onChange={setPoll} />
 
           <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={uploading > 0}
-              onClick={() => fileRef.current?.click()}
-            >
-              {uploading > 0 ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Paperclip />
-              )}
-              {uploading > 0
-                ? `Mengunggah ${uploading}…`
-                : media.length > 0
-                  ? `${media.length} media`
-                  : "Foto / video / file"}
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              accept="image/*,video/*,audio/*,application/pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files?.length) addFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={uploading > 0}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading > 0 ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Paperclip />
+                )}
+                {uploading > 0
+                  ? `Mengunggah ${uploading}…`
+                  : media.length > 0
+                    ? `${media.length} media`
+                    : "Foto / video / file"}
+              </Button>
+              <GifPicker
+                onPick={(url) =>
+                  setMedia((m) => [
+                    ...m,
+                    {
+                      url,
+                      kind: "image",
+                      name: "gif",
+                      contentType: "image/gif",
+                    },
+                  ])
+                }
+              />
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                accept="image/*,video/*,audio/*,application/pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.length) addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </div>
             <Button size="sm" disabled={busy || uploading > 0} onClick={submit}>
               {busy ? "Memposting…" : "Posting"}
             </Button>

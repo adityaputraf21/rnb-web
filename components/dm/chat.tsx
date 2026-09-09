@@ -32,6 +32,7 @@ import {
 import { initials, cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import { uploadFile } from "@/lib/upload-client";
+import { GifPicker } from "@/components/gif-picker";
 
 const DM_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢", "🙏"];
 
@@ -535,6 +536,19 @@ export function Chat({
                 if (f) onFile(f);
                 e.target.value = "";
               }}
+            />
+            <GifPicker
+              onPick={(url) => send("", { url, type: "image" })}
+              trigger={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-xs font-bold"
+                >
+                  GIF
+                </Button>
+              }
             />
             <input
               value={text}

@@ -108,6 +108,12 @@ model User {
   reportsMade        Report[]       @relation("reporter")
   reportsResolved    Report[]       @relation("resolver")
 
+  articles         Article[]     @relation("articleAuthor")
+  questClaims      QuestClaim[]
+  groupsOwned      GroupChat[]   @relation("groupOwner")
+  groupMemberships GroupMember[]
+  groupMessages    GroupMessage[]
+
   @@index([points])
   @@index([lastSeenAt])
 }
@@ -203,7 +209,18 @@ model SiteConfig {
   webhookUsername  String   @default("RnB")
   webhookAvatar    String?
   bannedWords      String?  // dipisah baris baru; cocok = konten diblokir
-  updatedAt        DateTime @updatedAt
+
+  // Blog / quest
+  blogEnabled   Boolean @default(true)
+  questsEnabled Boolean @default(true)
+
+  // Integrasi guild Discord
+  requireGuild       Boolean @default(false) // wajib jadi member guild untuk login
+  discordGuildId     String?
+  discordModRoleId   String? // role Discord -> MODERATOR di web
+  discordAdminRoleId String? // role Discord -> ADMIN di web
+
+  updatedAt DateTime @updatedAt
 }
 
 /* Cache preview link (Open Graph) */
@@ -817,4 +834,96 @@ model Invite {
   inviter User @relation("inviter", fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@index([inviterId])
+}
+
+/* ========================================================================== */
+/*  Blog / Artikel                                                             */
+/* ========================================================================== */
+
+model Article {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  excerpt     String?
+  body        String
+  coverImage  String?
+  published   Boolean   @default(false)
+  authorId    String?
+  views       Int       @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author User? @relation("articleAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([published, publishedAt])
+}
+
+/* ========================================================================== */
+/*  Quest mingguan / musiman (progress dihitung on-demand, hanya klaim disimpan) */
+/* ========================================================================== */
+
+model QuestClaim {
+  id        String   @id @default(cuid())
+  userId    String
+  questKey  String
+  periodKey String // mis. "2026-W37" atau "2026-S3"
+  reward    Int      @default(0)
+  claimedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questKey, periodKey])
+  @@index([userId, periodKey])
+}
+
+/* ========================================================================== */
+/*  Group chat                                                                 */
+/* ========================================================================== */
+
+model GroupChat {
+  id            String   @id @default(cuid())
+  name          String
+  image         String?
+  ownerId       String?
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  owner    User?          @relation("groupOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members  GroupMember[]
+  messages GroupMessage[]
+
+  @@index([lastMessageAt])
+}
+
+model GroupMember {
+  id         String    @id @default(cuid())
+  groupId    String
+  userId     String
+  role       String    @default("member") // owner | member
+  lastReadAt DateTime?
+  joinedAt   DateTime  @default(now())
+
+  group GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model GroupMessage {
+  id        String    @id @default(cuid())
+  groupId   String
+  senderId  String?
+  body      String
+  mediaUrl  String?
+  mediaType String?
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  group  GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender User?     @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
 }

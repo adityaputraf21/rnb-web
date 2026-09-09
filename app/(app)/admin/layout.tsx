@@ -19,6 +19,7 @@ export default async function AdminLayout({
     { href: "/admin", label: "Ringkasan" },
     { href: "/admin/reports", label: `Laporan${openReports ? ` (${openReports})` : ""}` },
     { href: "/admin/appeals", label: `Banding${openAppeals ? ` (${openAppeals})` : ""}` },
+    { href: "/admin/blog", label: "Blog" },
     { href: "/admin/categories", label: "Kategori" },
     { href: "/admin/users", label: "Pengguna" },
     { href: "/admin/audit", label: "Audit log" },

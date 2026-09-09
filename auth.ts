@@ -55,7 +55,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Discord({
       authorization:
-        "https://discord.com/api/oauth2/authorize?scope=identify+email",
+        "https://discord.com/api/oauth2/authorize?scope=identify+email+guilds+guilds.members.read",
       profile(profile) {
         const image = profile.avatar
           ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${
@@ -75,7 +75,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  events: {
+    async signIn({ user }) {
+      if (!user?.id) return;
+      try {
+        const { syncGuildRoles } = await import("@/lib/discord-guild");
+        await syncGuildRoles(user.id);
+      } catch {
+        /* best-effort */
+      }
+    },
+  },
   callbacks: {
+    async signIn({ account }) {
+      if (account?.provider !== "discord" || !account.access_token) return true;
+      try {
+        const { getSiteConfig } = await import("@/lib/site-config");
+        const cfg = await getSiteConfig();
+        if (!cfg.requireGuild || !cfg.discordGuildId) return true;
+        const res = await fetch("https://discord.com/api/users/@me/guilds", {
+          headers: { Authorization: `Bearer ${account.access_token}` },
+        });
+        if (!res.ok) return true; // jangan kunci user kalau Discord error
+        const guilds = (await res.json()) as { id: string }[];
+        if (guilds.some((g) => g.id === cfg.discordGuildId)) return true;
+        return "/login?error=guild";
+      } catch {
+        return true;
+      }
+    },
     async session({ session, user }) {
       const dbUser = await prisma.user.findUnique({
         where: { id: user.id },

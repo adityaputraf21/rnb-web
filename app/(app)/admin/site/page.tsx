@@ -22,6 +22,12 @@ export default async function AdminSitePage() {
           maintenanceMode: cfg.maintenanceMode,
           webhookUsername: cfg.webhookUsername,
           webhookAvatar: cfg.webhookAvatar,
+          blogEnabled: cfg.blogEnabled,
+          questsEnabled: cfg.questsEnabled,
+          requireGuild: cfg.requireGuild,
+          discordGuildId: cfg.discordGuildId,
+          discordModRoleId: cfg.discordModRoleId,
+          discordAdminRoleId: cfg.discordAdminRoleId,
         }}
       />
     </div>

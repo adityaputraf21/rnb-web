@@ -3,6 +3,7 @@ import { MessagesSquare, Mail } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { getSiteConfig } from "@/lib/site-config";
 import { unreadDMCount } from "@/lib/dm";
+import { unreadGroupCount } from "@/lib/group";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -11,18 +12,27 @@ import { SignInButton } from "@/components/sign-in-button";
 import { SearchBox } from "@/components/search-box";
 import { MobileNav } from "@/components/mobile-nav";
 
-const NAV = [
-  { href: "/feed", label: "Feed" },
-  { href: "/explore", label: "Jelajah" },
-  { href: "/forum", label: "Forum" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/events", label: "Event" },
-  { href: "/announcements", label: "Pengumuman" },
-];
-
 export async function SiteHeader() {
   const [user, cfg] = await Promise.all([getCurrentUser(), getSiteConfig()]);
-  const dmUnread = user ? await unreadDMCount(user.id).catch(() => 0) : 0;
+  const dmUnread = user
+    ? (
+        await Promise.all([
+          unreadDMCount(user.id).catch(() => 0),
+          unreadGroupCount(user.id).catch(() => 0),
+        ])
+      ).reduce((a, b) => a + b, 0)
+    : 0;
+
+  const NAV = [
+    { href: "/feed", label: "Feed" },
+    { href: "/explore", label: "Jelajah" },
+    { href: "/forum", label: "Forum" },
+    ...(cfg.blogEnabled ? [{ href: "/blog", label: "Blog" }] : []),
+    ...(cfg.questsEnabled && user ? [{ href: "/quests", label: "Quest" }] : []),
+    { href: "/leaderboard", label: "Leaderboard" },
+    { href: "/events", label: "Event" },
+    { href: "/announcements", label: "Pengumuman" },
+  ];
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
