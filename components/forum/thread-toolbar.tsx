@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Bookmark, BookmarkCheck, Bell, BellOff, Link2, Pin } from "lucide-react";
+import {
+  Bookmark,
+  BookmarkCheck,
+  Bell,
+  BellOff,
+  Link2,
+  Pin,
+  BellMinus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ReportButton } from "@/components/forum/report-button";
@@ -13,6 +21,7 @@ export function ThreadToolbar({
   loggedIn,
   canPinProfile = false,
   initialPinnedToProfile = false,
+  initialMuted = false,
 }: {
   threadId: string;
   initialBookmarked: boolean;
@@ -20,13 +29,34 @@ export function ThreadToolbar({
   loggedIn: boolean;
   canPinProfile?: boolean;
   initialPinnedToProfile?: boolean;
+  initialMuted?: boolean;
 }) {
   const [bookmarked, setBookmarked] = React.useState(initialBookmarked);
   const [subscribed, setSubscribed] = React.useState(initialSubscribed);
+  const [muted, setMuted] = React.useState(initialMuted);
   const [pinnedProfile, setPinnedProfile] = React.useState(
     initialPinnedToProfile,
   );
   const [busy, setBusy] = React.useState(false);
+
+  async function toggleMute() {
+    if (!loggedIn) return toast.error("Masuk dulu");
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/threads/${threadId}/mute`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error();
+      setMuted(data.muted);
+      if (data.muted) setSubscribed(false);
+      toast.success(data.muted ? "Thread dibisukan" : "Bisukan dibatalkan");
+    } catch {
+      toast.error("Gagal");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function togglePinProfile() {
     setBusy(true);
@@ -99,6 +129,10 @@ export function ThreadToolbar({
       <Button variant="ghost" size="sm" onClick={toggleSub} disabled={busy}>
         {subscribed ? <BellOff /> : <Bell />}
         {subscribed ? "Berhenti ikuti" : "Ikuti"}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={toggleMute} disabled={busy}>
+        <BellMinus className={muted ? "text-primary" : ""} />
+        {muted ? "Bisukan aktif" : "Bisukan"}
       </Button>
       <Button variant="ghost" size="sm" onClick={copyLink}>
         <Link2 /> Salin link

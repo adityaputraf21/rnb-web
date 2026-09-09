@@ -31,9 +31,18 @@ export async function GET(req: Request) {
       points: true,
       tier: true,
       bannedAt: true,
+      bannedUntil: true,
+      mutedUntil: true,
       banReason: true,
       createdAt: true,
     },
   });
-  return NextResponse.json(users);
+  return NextResponse.json(
+    users.map((u) => ({
+      ...u,
+      bannedAt: u.bannedAt?.toISOString() ?? null,
+      bannedUntil: u.bannedUntil?.toISOString() ?? null,
+      mutedUntil: u.mutedUntil?.toISOString() ?? null,
+    })),
+  );
 }

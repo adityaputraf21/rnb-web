@@ -13,7 +13,7 @@ export default async function BannedPage() {
     uid
       ? prisma.user.findUnique({
           where: { id: uid },
-          select: { banReason: true },
+          select: { banReason: true, bannedUntil: true },
         })
       : null,
     uid
@@ -37,6 +37,14 @@ export default async function BannedPage() {
           {reason && (
             <p>
               Alasan: <span className="text-foreground">{reason}</span>
+            </p>
+          )}
+          {me?.bannedUntil && (
+            <p>
+              Berakhir otomatis:{" "}
+              <span className="text-foreground">
+                {me.bannedUntil.toLocaleString("id-ID")}
+              </span>
             </p>
           )}
           <p>Kalau menurutmu ini keliru, ajukan banding di bawah.</p>

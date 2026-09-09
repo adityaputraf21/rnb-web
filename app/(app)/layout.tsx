@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import { applyPendingInvite } from "@/lib/invites";
 
 /**
  * Semua halaman di grup (app) wajib login. Middleware sudah menyaring cepat
@@ -19,6 +20,9 @@ export default async function AppLayout({
     redirect(`/login?callbackUrl=${encodeURIComponent(path)}`);
   }
   if (user.banned) redirect("/banned");
+
+  void applyPendingInvite(user.id).catch(() => {});
+
   if (!user.onboarded && !path.startsWith("/onboarding")) {
     redirect("/onboarding");
   }

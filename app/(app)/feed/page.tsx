@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasRole } from "@/lib/auth-helpers";
 import { blockedIdsFor } from "@/lib/blocks";
 import { mutedKeywordsFor, mutedStatusWhere } from "@/lib/mute";
+import { forYouStatuses } from "@/lib/for-you";
 import { Button } from "@/components/ui/button";
 import { StatusComposer } from "@/components/feed/status-composer";
 import { FeedList } from "@/components/feed/feed-list";
@@ -36,25 +37,36 @@ export default async function FeedPage({
     ? mutedStatusWhere(await mutedKeywordsFor(user.id))
     : {};
 
-  const rows = await prisma.status.findMany({
-    where: {
-      deletedAt: null,
-      ...authorWhere,
-      ...muted,
-      ...(hidden.size && !("authorId" in authorWhere)
-        ? { authorId: { notIn: [...hidden] } }
-        : {}),
-    },
-    orderBy:
-      sort === "top"
-        ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }]
-        : [{ createdAt: "desc" }],
-    take: PAGE + 1,
-    include: statusInclude(user?.id),
-  });
+  const forYou = sort === "foryou" && !!user;
 
-  const nextCursor = rows.length > PAGE ? rows[PAGE].id : null;
-  const items = rows.slice(0, PAGE).map((s) => shapeStatus(s, user));
+  const rows = forYou
+    ? []
+    : await prisma.status.findMany({
+        where: {
+          deletedAt: null,
+          publishAt: { lte: new Date() },
+          ...authorWhere,
+          ...muted,
+          ...(hidden.size && !("authorId" in authorWhere)
+            ? { authorId: { notIn: [...hidden] } }
+            : {}),
+        },
+        orderBy:
+          sort === "top"
+            ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }]
+            : [{ createdAt: "desc" }],
+        take: PAGE + 1,
+        include: statusInclude(user?.id),
+      });
+
+  const nextCursor = forYou
+    ? null
+    : rows.length > PAGE
+      ? rows[PAGE].id
+      : null;
+  const items = forYou
+    ? await forYouStatuses({ id: user!.id, username: user!.username })
+    : rows.slice(0, PAGE).map((s) => shapeStatus(s, user));
 
   const tab = (f: string | undefined, s: string | undefined, label: string) => {
     const active = (filter ?? "") === (f ?? "") && (sort ?? "") === (s ?? "");
@@ -98,6 +110,7 @@ export default async function FeedPage({
       )}
 
       <div className="flex flex-wrap gap-1">
+        {user && tab(undefined, "foryou", "Untukmu")}
         {tab(undefined, undefined, "Terbaru")}
         {tab(undefined, "top", "Terpopuler")}
         {user && tab("following", undefined, "Mengikuti")}

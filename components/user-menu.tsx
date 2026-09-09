@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { LogOut, Settings, Shield, User as UserIcon, Trophy, Bookmark } from "lucide-react";
+import {
+  LogOut,
+  Settings,
+  Shield,
+  User as UserIcon,
+  Trophy,
+  Bookmark,
+  Swords,
+  UserPlus,
+} from "lucide-react";
 import type { Role } from "@prisma/client";
 import {
   DropdownMenu,
@@ -54,8 +63,18 @@ export function UserMenu({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
+          <Link href="/quests">
+            <Swords /> Quest
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/leaderboard">
             <Trophy /> Leaderboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/invite">
+            <UserPlus /> Undang teman
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

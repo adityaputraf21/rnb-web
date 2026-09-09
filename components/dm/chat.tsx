@@ -33,6 +33,7 @@ import { initials, cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import { uploadFile } from "@/lib/upload-client";
 import { GifPicker } from "@/components/gif-picker";
+import { EmojiPicker } from "@/components/emoji-picker";
 
 const DM_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢", "🙏"];
 
@@ -547,6 +548,14 @@ export function Chat({
                   className="text-xs font-bold"
                 >
                   GIF
+                </Button>
+              }
+            />
+            <EmojiPicker
+              onPick={(e) => setText((t) => t + e)}
+              trigger={
+                <Button type="button" variant="ghost" size="icon">
+                  <span className="text-base">😊</span>
                 </Button>
               }
             />

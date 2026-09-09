@@ -29,6 +29,7 @@ type Row = {
   points: number;
   tier: string;
   bannedAt: string | null;
+  bannedUntil: string | null;
   mutedUntil: string | null;
 };
 
@@ -67,6 +68,7 @@ export function UsersManager({
               ...r,
               role: data.role ?? r.role,
               bannedAt: data.bannedAt ?? null,
+              bannedUntil: data.bannedUntil ?? null,
               mutedUntil: data.mutedUntil ?? null,
               points: data.points ?? r.points,
               tier: data.tier ?? r.tier,
@@ -111,7 +113,13 @@ export function UsersManager({
               {r.role !== "USER" && (
                 <Badge className={ROLE_BADGE[r.role]}>{ROLE_LABEL[r.role]}</Badge>
               )}
-              {r.bannedAt && <Badge variant="destructive">Blokir</Badge>}
+              {r.bannedAt && (
+                <Badge variant="destructive">
+                  {r.bannedUntil
+                    ? `Blokir s/d ${new Date(r.bannedUntil).toLocaleDateString("id-ID")}`
+                    : "Blokir"}
+                </Badge>
+              )}
               {muted && <Badge variant="secondary">Timeout</Badge>}
 
               <ModNotesDialog userId={r.id} username={r.username} />
@@ -193,18 +201,41 @@ export function UsersManager({
                         <DropdownMenuSeparator />
                       </>
                     )}
-                    {r.id !== meId && (
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => {
-                          if (r.bannedAt) return patch(r.id, { banned: false });
-                          const reason = prompt("Alasan blokir (opsional):") ?? "";
-                          patch(r.id, { banned: true, banReason: reason });
-                        }}
-                      >
-                        {r.bannedAt ? "Cabut blokir" : "Blokir permanen"}
-                      </DropdownMenuItem>
-                    )}
+                    {r.id !== meId &&
+                      (r.bannedAt ? (
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => patch(r.id, { banned: false })}
+                        >
+                          Cabut blokir
+                        </DropdownMenuItem>
+                      ) : (
+                        <>
+                          <DropdownMenuLabel>Blokir</DropdownMenuLabel>
+                          {[
+                            ["1 hari", 1],
+                            ["7 hari", 7],
+                            ["30 hari", 30],
+                            ["Permanen", 0],
+                          ].map(([label, days]) => (
+                            <DropdownMenuItem
+                              key={label}
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                const reason =
+                                  prompt("Alasan blokir (opsional):") ?? "";
+                                patch(r.id, {
+                                  banned: true,
+                                  banReason: reason,
+                                  banDays: days,
+                                });
+                              }}
+                            >
+                              {label}
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

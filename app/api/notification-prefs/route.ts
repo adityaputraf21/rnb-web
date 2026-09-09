@@ -9,6 +9,7 @@ const FIELDS = [
   "notifyReply",
   "notifyReaction",
   "notifyFollow",
+  "notifyEmailDigest",
 ] as const;
 
 export async function PATCH(req: Request) {

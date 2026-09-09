@@ -114,6 +114,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           points: true,
           tier: true,
           bannedAt: true,
+          bannedUntil: true,
           mutedUntil: true,
           onboardedAt: true,
           streakCount: true,
@@ -125,7 +126,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = dbUser?.role ?? "USER";
       session.user.points = dbUser?.points ?? 0;
       session.user.tier = dbUser?.tier ?? "Bronze";
-      session.user.banned = !!dbUser?.bannedAt;
+
+      // Ban sementara yang sudah lewat -> anggap tidak diblokir + bersihkan.
+      let banned = !!dbUser?.bannedAt;
+      if (
+        banned &&
+        dbUser?.bannedUntil &&
+        dbUser.bannedUntil.getTime() < Date.now()
+      ) {
+        banned = false;
+        void prisma.user
+          .update({
+            where: { id: user.id },
+            data: { bannedAt: null, bannedUntil: null, banReason: null },
+          })
+          .catch(() => {});
+      }
+      session.user.banned = banned;
       session.user.mutedUntil = dbUser?.mutedUntil?.toISOString() ?? null;
       session.user.onboarded = !!dbUser?.onboardedAt;
       session.user.streak = dbUser?.streakCount ?? 0;

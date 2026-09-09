@@ -29,9 +29,8 @@ export async function PATCH(
     );
   }
 
-  const { role, banned, banReason, muteMinutes, pointsDelta } = await req
-    .json()
-    .catch(() => ({}));
+  const { role, banned, banReason, banDays, muteMinutes, pointsDelta } =
+    await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
   const logs: string[] = [];
 
@@ -56,7 +55,16 @@ export async function PATCH(
   if (typeof banned === "boolean") {
     data.bannedAt = banned ? new Date() : null;
     data.banReason = banned ? (banReason ?? null) : null;
-    logs.push(banned ? `ban: ${banReason ?? "-"}` : "unban");
+    const days = Number(banDays);
+    data.bannedUntil =
+      banned && Number.isFinite(days) && days > 0
+        ? new Date(Date.now() + days * 86400000)
+        : null;
+    logs.push(
+      banned
+        ? `ban${data.bannedUntil ? ` ${days}h` : " permanen"}: ${banReason ?? "-"}`
+        : "unban",
+    );
   }
 
   if (Number.isFinite(muteMinutes)) {
@@ -110,6 +118,7 @@ export async function PATCH(
     id: updated.id,
     role: updated.role,
     bannedAt: updated.bannedAt,
+    bannedUntil: updated.bannedUntil,
     mutedUntil: updated.mutedUntil,
     points: updated.points,
     tier: updated.tier,

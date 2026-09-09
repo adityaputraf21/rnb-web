@@ -36,7 +36,12 @@ export async function GET(req: Request) {
   const muted = mutedStatusWhere(await mutedKeywordsFor(me.id));
 
   const rows = await prisma.status.findMany({
-    where: { deletedAt: null, ...authorFilter, ...muted },
+    where: {
+      deletedAt: null,
+      publishAt: { lte: new Date() },
+      ...authorFilter,
+      ...muted,
+    },
     orderBy:
       sort === "top"
         ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }]
@@ -61,8 +66,24 @@ export async function POST(req: Request) {
     return res as Response;
   }
 
-  const { body, media, images, poll } = await req.json().catch(() => ({}));
+  const { body, media, images, poll, publishAt } = await req
+    .json()
+    .catch(() => ({}));
   const text = typeof body === "string" ? body.trim() : "";
+
+  let scheduledAt: Date | null = null;
+  if (typeof publishAt === "string" && publishAt) {
+    const d = new Date(publishAt);
+    if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now() + 60_000) {
+      // maksimal 30 hari ke depan
+      scheduledAt = d.getTime() > Date.now() + 30 * 86400000 ? null : d;
+      if (!scheduledAt)
+        return NextResponse.json(
+          { error: "jadwal maksimal 30 hari ke depan" },
+          { status: 400 },
+        );
+    }
+  }
 
   // media: [{url, type, name}] baru; images: string[] kompat lama
   type MediaIn = { url: string; type: string; name?: string };
@@ -104,6 +125,9 @@ export async function POST(req: Request) {
     data: {
       authorId: user.id,
       body: text,
+      ...(scheduledAt
+        ? { publishAt: scheduledAt, mentionsSentAt: null }
+        : { mentionsSentAt: new Date() }),
       images: { create: items },
       ...(pollOptions.length >= 2 && poll?.question
         ? {
@@ -123,6 +147,13 @@ export async function POST(req: Request) {
         : {}),
     },
   });
+
+  if (scheduledAt) {
+    return NextResponse.json(
+      { id: status.id, scheduledFor: scheduledAt.toISOString() },
+      { status: 201 },
+    );
+  }
 
   await awardPoints(user.id, 3);
   await checkAchievements(user.id);

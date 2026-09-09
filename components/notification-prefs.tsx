@@ -8,6 +8,7 @@ const ITEMS: { key: string; label: string }[] = [
   { key: "notifyReply", label: "Balasan di thread/status kamu" },
   { key: "notifyReaction", label: "Reaksi & like" },
   { key: "notifyFollow", label: "Pengikut baru" },
+  { key: "notifyEmailDigest", label: "Email rekap mingguan" },
 ];
 
 export function NotificationPrefs({

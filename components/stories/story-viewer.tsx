@@ -36,10 +36,39 @@ export function StoryViewer({
   >(null);
   const [reply, setReply] = React.useState("");
   const [replyFocus, setReplyFocus] = React.useState(false);
+  const [pollState, setPollState] = React.useState<
+    Record<string, { counts: number[]; myChoice: number | null }>
+  >({});
   const group = groups[gi];
   const story = group?.items[si];
   const timerRef = React.useRef<number | null>(null);
-  const paused = viewers !== null || replyFocus;
+  const poll = story?.pollQuestion ? story : null;
+  const pollLocal = story ? pollState[story.id] : undefined;
+  const myPollChoice = pollLocal?.myChoice ?? story?.myPollChoice ?? null;
+  const paused = viewers !== null || replyFocus || (!!poll && !story?.mine && myPollChoice === null);
+
+  async function votePoll(choice: number) {
+    if (!story) return;
+    setPollState((s) => ({
+      ...s,
+      [story.id]: {
+        counts: pollLocal?.counts ?? story.pollCounts ?? [],
+        myChoice: choice,
+      },
+    }));
+    const res = await fetch(`/api/stories/${story.id}/poll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ choice }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setPollState((s) => ({
+        ...s,
+        [story.id]: { counts: d.counts, myChoice: d.myChoice },
+      }));
+    }
+  }
 
   async function sendReply() {
     if (!story || !reply.trim()) return;
@@ -251,6 +280,54 @@ export function StoryViewer({
             />
           )}
         </div>
+
+        {story.audience === "close" && (
+          <span className="absolute left-3 top-14 z-10 rounded-full bg-green-500/90 px-2 py-0.5 text-[11px] font-medium text-white">
+            ⭐ Close friends
+          </span>
+        )}
+
+        {poll && (
+          <div
+            className="absolute inset-x-0 z-20 mx-auto max-w-xs rounded-2xl bg-black/55 p-3 backdrop-blur"
+            style={{ bottom: story.mine ? "5rem" : "9rem" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="mb-2 text-center text-sm font-semibold text-white">
+              {poll.pollQuestion}
+            </p>
+            <div className="space-y-1.5">
+              {(poll.pollOptions ?? []).map((opt, i) => {
+                const counts = pollLocal?.counts ?? poll.pollCounts ?? [];
+                const total = counts.reduce((a, b) => a + b, 0) || 0;
+                const answered = myPollChoice !== null || poll.mine;
+                const pct = total ? Math.round((counts[i] / total) * 100) : 0;
+                return (
+                  <button
+                    key={i}
+                    disabled={answered}
+                    onClick={() => votePoll(i)}
+                    className="relative w-full overflow-hidden rounded-lg border border-white/30 px-3 py-1.5 text-left text-sm text-white disabled:cursor-default"
+                  >
+                    {answered && (
+                      <span
+                        className="absolute inset-y-0 left-0 bg-white/25"
+                        style={{ width: `${pct}%` }}
+                      />
+                    )}
+                    <span className="relative flex justify-between">
+                      <span>
+                        {myPollChoice === i && "✓ "}
+                        {opt}
+                      </span>
+                      {answered && <span>{pct}%</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {story.caption && story.mediaType !== "text" && (
           <p

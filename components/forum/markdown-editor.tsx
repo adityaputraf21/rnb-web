@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Markdown } from "@/components/markdown";
+import { EmojiPicker } from "@/components/emoji-picker";
 import { uploadFile } from "@/lib/upload-client";
 
 type MentionUser = { username: string; name: string | null; image: string | null };
@@ -117,20 +118,23 @@ export function MarkdownEditor({
           <TabsTrigger value="write">Tulis</TabsTrigger>
           <TabsTrigger value="preview">Pratinjau</TabsTrigger>
         </TabsList>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={disabled || uploading}
-          onClick={() => fileRef.current?.click()}
-        >
-          {uploading ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <ImagePlus />
-          )}
-          Gambar / file
-        </Button>
+        <div className="flex items-center gap-1">
+          <EmojiPicker onPick={(e) => insertAtCursor(e)} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={disabled || uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <ImagePlus />
+            )}
+            Gambar / file
+          </Button>
+        </div>
         <input
           ref={fileRef}
           type="file"

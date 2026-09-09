@@ -22,15 +22,24 @@ export async function notifySubscribers(input: {
   url: string;
   excludeUserIds: string[];
 }) {
-  const subs = await prisma.threadSubscription.findMany({
-    where: {
-      threadId: input.threadId,
-      userId: { notIn: [input.actorId, ...input.excludeUserIds] },
-    },
-    select: { userId: true },
-  });
+  const [subs, mutes] = await Promise.all([
+    prisma.threadSubscription.findMany({
+      where: {
+        threadId: input.threadId,
+        userId: { notIn: [input.actorId, ...input.excludeUserIds] },
+      },
+      select: { userId: true },
+    }),
+    prisma.threadMute.findMany({
+      where: { threadId: input.threadId },
+      select: { userId: true },
+    }),
+  ]);
+  const muted = new Set(mutes.map((m) => m.userId));
   await Promise.all(
-    subs.map((s) =>
+    subs
+      .filter((s) => !muted.has(s.userId))
+      .map((s) =>
       notify({
         userId: s.userId,
         actorId: input.actorId,

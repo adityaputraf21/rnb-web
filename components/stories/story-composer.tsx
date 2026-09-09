@@ -25,6 +25,10 @@ export function StoryComposer({
   const [caption, setCaption] = React.useState("");
   const [text, setText] = React.useState("");
   const [bg, setBg] = React.useState(BG[0]);
+  const [audience, setAudience] = React.useState<"all" | "close">("all");
+  const [pollQ, setPollQ] = React.useState("");
+  const [pollOpts, setPollOpts] = React.useState(["", ""]);
+  const [showPoll, setShowPoll] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -46,13 +50,25 @@ export function StoryComposer({
   async function submit() {
     setBusy(true);
     try {
+      const pollPayload =
+        showPoll && pollQ.trim() && pollOpts.filter((o) => o.trim()).length >= 2
+          ? { question: pollQ, options: pollOpts.filter((o) => o.trim()) }
+          : undefined;
       const payload =
         mode === "text"
-          ? { mediaType: "text", caption: text, bgColor: bg }
+          ? {
+              mediaType: "text",
+              caption: text,
+              bgColor: bg,
+              audience,
+              poll: pollPayload,
+            }
           : {
               mediaUrl: media?.url,
               mediaType: media?.type,
               caption,
+              audience,
+              poll: pollPayload,
             };
       if (mode === "text" && !text.trim()) {
         setBusy(false);
@@ -183,6 +199,68 @@ export function StoryComposer({
             className="mt-3"
           />
         )}
+
+        <div className="mt-3 flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={audience === "all" ? "secondary" : "ghost"}
+            onClick={() => setAudience("all")}
+          >
+            Semua
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={audience === "close" ? "secondary" : "ghost"}
+            onClick={() => setAudience("close")}
+          >
+            ⭐ Close friends
+          </Button>
+        </div>
+
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => setShowPoll((v) => !v)}
+            className="text-sm text-primary hover:underline"
+          >
+            {showPoll ? "− Hapus polling" : "+ Tambah polling"}
+          </button>
+          {showPoll && (
+            <div className="mt-2 space-y-1.5">
+              <Input
+                value={pollQ}
+                onChange={(e) => setPollQ(e.target.value)}
+                placeholder="Pertanyaan polling"
+                maxLength={120}
+              />
+              {pollOpts.map((o, i) => (
+                <Input
+                  key={i}
+                  value={o}
+                  onChange={(e) =>
+                    setPollOpts((p) =>
+                      p.map((x, xi) => (xi === i ? e.target.value : x)),
+                    )
+                  }
+                  placeholder={`Opsi ${i + 1}`}
+                  maxLength={60}
+                />
+              ))}
+              {pollOpts.length < 4 && (
+                <button
+                  type="button"
+                  onClick={() => setPollOpts((p) => [...p, ""])}
+                  className="text-xs text-primary hover:underline"
+                >
+                  + Opsi
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <Button
           className="mt-3 w-full"
           disabled={busy || uploading}

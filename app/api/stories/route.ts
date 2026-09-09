@@ -9,17 +9,30 @@ export async function GET() {
   const me = await getCurrentUser();
   if (!me) return NextResponse.json([], { status: 401 });
   const now = new Date();
-  const hidden = me ? await blockedIdsFor(me.id) : new Set<string>();
+  const [hidden, closeGrantors] = await Promise.all([
+    blockedIdsFor(me.id),
+    prisma.closeFriend.findMany({
+      where: { friendId: me.id },
+      select: { ownerId: true },
+    }),
+  ]);
+  const closeIds = closeGrantors.map((c) => c.ownerId);
 
   const stories = await prisma.story.findMany({
     where: {
       expiresAt: { gt: now },
       ...(hidden.size ? { authorId: { notIn: [...hidden] } } : {}),
+      OR: [
+        { audience: "all" },
+        { authorId: me.id },
+        { authorId: { in: closeIds } },
+      ],
     },
     orderBy: { createdAt: "asc" },
     include: {
       author: { select: { username: true, name: true, image: true } },
       views: me ? { where: { viewerId: me.id }, select: { id: true } } : false,
+      pollVotes: { select: { userId: true, choice: true } },
       _count: { select: { views: true } },
     },
   });
@@ -38,6 +51,11 @@ export async function GET() {
         mediaType: string;
         bgColor: string | null;
         caption: string | null;
+        audience: string;
+        pollQuestion: string | null;
+        pollOptions: string[];
+        pollCounts: number[];
+        myPollChoice: number | null;
         createdAt: string;
         viewed: boolean;
         views: number;
@@ -62,12 +80,21 @@ export async function GET() {
     const viewed = me ? (s.views as { id: string }[]).length > 0 : false;
     const mine = !!me && s.author.username === me.username;
     if (!viewed && !mine) g.allViewed = false;
+    const pollCounts = s.pollOptions.map(
+      (_, i) => s.pollVotes.filter((v) => v.choice === i).length,
+    );
+    const myVote = s.pollVotes.find((v) => v.userId === me.id);
     g.items.push({
       id: s.id,
       mediaUrl: s.mediaUrl,
       mediaType: s.mediaType,
       bgColor: s.bgColor,
       caption: s.caption,
+      audience: s.audience,
+      pollQuestion: s.pollQuestion,
+      pollOptions: s.pollOptions,
+      pollCounts,
+      myPollChoice: myVote ? myVote.choice : null,
       createdAt: s.createdAt.toISOString(),
       viewed,
       views: s._count.views,
@@ -95,7 +122,7 @@ export async function POST(req: Request) {
     return res as Response;
   }
 
-  const { mediaUrl, mediaType, caption, bgColor } = await req
+  const { mediaUrl, mediaType, caption, bgColor, audience, poll } = await req
     .json()
     .catch(() => ({}));
   const type = ["image", "video", "text"].includes(mediaType)
@@ -109,6 +136,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "media wajib" }, { status: 400 });
   }
 
+  const pollQuestion =
+    poll && typeof poll.question === "string" && poll.question.trim()
+      ? poll.question.trim().slice(0, 120)
+      : null;
+  const pollOptions: string[] =
+    pollQuestion && Array.isArray(poll.options)
+      ? poll.options
+          .map((o: unknown) => String(o).trim().slice(0, 60))
+          .filter(Boolean)
+          .slice(0, 4)
+      : [];
+
   const story = await prisma.story.create({
     data: {
       authorId: user.id,
@@ -116,6 +155,9 @@ export async function POST(req: Request) {
       mediaType: type,
       bgColor: /^#[0-9a-f]{6}$/i.test(bgColor ?? "") ? bgColor : null,
       caption: cap || null,
+      audience: audience === "close" ? "close" : "all",
+      pollQuestion: pollOptions.length >= 2 ? pollQuestion : null,
+      pollOptions: pollOptions.length >= 2 ? pollOptions : [],
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     },
   });

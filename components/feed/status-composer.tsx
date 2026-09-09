@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Paperclip, Loader2, X, FileText, Film } from "lucide-react";
+import { Paperclip, Loader2, X, FileText, Film, Clock, FileEdit } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextarea } from "@/components/rich-textarea";
 import { initials } from "@/lib/utils";
 import { uploadFile, type Uploaded } from "@/lib/upload-client";
 import { GifPicker } from "@/components/gif-picker";
@@ -29,7 +29,61 @@ export function StatusComposer({
   const [poll, setPoll] = React.useState<PollDraft | null>(null);
   const [uploading, setUploading] = React.useState(0);
   const [busy, setBusy] = React.useState(false);
+  const [scheduleAt, setScheduleAt] = React.useState("");
+  const [showSchedule, setShowSchedule] = React.useState(false);
+  const [draftId, setDraftId] = React.useState<string | null>(null);
+  const [drafts, setDrafts] = React.useState<
+    { id: string; body: string; media: unknown }[]
+  >([]);
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const loadDrafts = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/drafts?kind=status");
+      if (res.ok) setDrafts(await res.json());
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  React.useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
+
+  async function saveDraft() {
+    try {
+      const res = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: draftId,
+          kind: "status",
+          body,
+          media: media.map((m) => ({ url: m.url, type: m.kind, name: m.name })),
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "gagal");
+      setDraftId(d.id);
+      toast.success("Draf disimpan");
+      loadDrafts();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal");
+    }
+  }
+
+  function loadDraft(d: { id: string; body: string; media: unknown }) {
+    setDraftId(d.id);
+    setBody(d.body);
+    const m = Array.isArray(d.media) ? d.media : [];
+    setMedia(
+      m.map((x: { url: string; type: string; name?: string }) => ({
+        url: x.url,
+        kind: (x.type ?? "file") as Uploaded["kind"],
+        name: x.name ?? "",
+        contentType: "",
+      })),
+    );
+  }
 
   async function addFiles(files: FileList) {
     for (const file of Array.from(files)) {
@@ -62,6 +116,10 @@ export function StatusComposer({
             name: m.name,
           })),
           poll: pp,
+          publishAt:
+            showSchedule && scheduleAt
+              ? new Date(scheduleAt).toISOString()
+              : undefined,
         }),
       });
       const data = await res.json();
@@ -69,6 +127,18 @@ export function StatusComposer({
       setBody("");
       setMedia([]);
       setPoll(null);
+      setScheduleAt("");
+      setShowSchedule(false);
+      if (draftId) {
+        void fetch(`/api/drafts/${draftId}`, { method: "DELETE" });
+        setDraftId(null);
+        loadDrafts();
+      }
+      toast.success(
+        data.scheduledFor
+          ? `Dijadwalkan ${new Date(data.scheduledFor).toLocaleString("id-ID")}`
+          : "Diposting",
+      );
       onPosted?.();
       router.refresh();
     } catch (e) {
@@ -86,12 +156,12 @@ export function StatusComposer({
           <AvatarFallback>{initials(user.name ?? user.username)}</AvatarFallback>
         </Avatar>
         <div className="flex-1 space-y-2">
-          <Textarea
+          <RichTextarea
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={setBody}
             placeholder="Apa yang lagi kamu pikirkan?"
             maxLength={2000}
-            className="min-h-[70px] resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+            className="min-h-[70px] resize-none border-0 px-0 pr-8 shadow-none focus-visible:ring-0"
           />
 
           {media.length > 0 && (
@@ -132,6 +202,31 @@ export function StatusComposer({
           )}
 
           <PollComposer value={poll} onChange={setPoll} />
+
+          {drafts.length > 0 && (
+            <div className="flex flex-wrap gap-1 text-xs">
+              <span className="text-muted-foreground">Draf:</span>
+              {drafts.slice(0, 4).map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => loadDraft(d)}
+                  className="max-w-[10rem] truncate rounded-full border px-2 py-0.5 hover:bg-accent"
+                >
+                  {d.body.slice(0, 30) || "(media)"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showSchedule && (
+            <input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+            />
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
@@ -177,9 +272,33 @@ export function StatusComposer({
                   e.target.value = "";
                 }}
               />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Jadwalkan"
+                onClick={() => setShowSchedule((v) => !v)}
+              >
+                <Clock className={showSchedule ? "text-primary" : ""} />
+              </Button>
+              {(body.trim() || media.length > 0) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  title="Simpan draf"
+                  onClick={saveDraft}
+                >
+                  <FileEdit />
+                </Button>
+              )}
             </div>
             <Button size="sm" disabled={busy || uploading > 0} onClick={submit}>
-              {busy ? "Memposting…" : "Posting"}
+              {busy
+                ? "Memposting…"
+                : showSchedule && scheduleAt
+                  ? "Jadwalkan"
+                  : "Posting"}
             </Button>
           </div>
         </div>

@@ -27,7 +27,7 @@ import { activityHeatmap } from "@/lib/heatmap";
 import { initials } from "@/lib/utils";
 import { timeAgo, fullDate } from "@/lib/format";
 import { tierClass, ROLE_LABEL, ROLE_BADGE } from "@/lib/tier-style";
-import { ACHIEVEMENTS } from "@/lib/achievements";
+import { ACHIEVEMENTS, ACHIEVEMENT_MAP } from "@/lib/achievements";
 
 export async function generateMetadata({
   params,
@@ -87,9 +87,13 @@ export default async function ProfilePage({
       .then((n) => n + 1),
     prisma.reaction.count({ where: { post: { authorId: user.id } } }),
     prisma.status.findMany({
-      where: { authorId: user.id, deletedAt: null },
-      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-      take: 10,
+      where: {
+        authorId: user.id,
+        deletedAt: null,
+        ...(me?.id === user.id ? {} : { publishAt: { lte: new Date() } }),
+      },
+      orderBy: [{ pinned: "desc" }, { publishAt: "desc" }],
+      take: 15,
       include: statusInclude(me?.id),
     }),
     prisma.follow.count({ where: { followingId: user.id } }),
@@ -163,6 +167,16 @@ export default async function ProfilePage({
         <div className="flex-1 pb-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{user.name ?? user.username}</h1>
+            {user.featuredAchievement &&
+              ACHIEVEMENT_MAP[user.featuredAchievement] && (
+                <span
+                  title={ACHIEVEMENT_MAP[user.featuredAchievement].name}
+                  className="inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs font-medium"
+                >
+                  <span>{ACHIEVEMENT_MAP[user.featuredAchievement].emoji}</span>
+                  {ACHIEVEMENT_MAP[user.featuredAchievement].name}
+                </span>
+              )}
             {user.role !== "USER" && (
               <Badge className={ROLE_BADGE[user.role]}>
                 {ROLE_LABEL[user.role]}

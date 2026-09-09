@@ -27,6 +27,17 @@ export function middleware(req: NextRequest) {
   const res = NextResponse.next();
   res.headers.set("x-pathname", pathname);
 
+  // Simpan kode undangan dari ?ref= untuk diklaim setelah login.
+  const ref = req.nextUrl.searchParams.get("ref");
+  if (ref && /^[a-z0-9]{4,12}$/i.test(ref) && !req.cookies.has("rnb_ref")) {
+    res.cookies.set("rnb_ref", ref, {
+      maxAge: 7 * 86400,
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
+
   const isPublic =
     PUBLIC.includes(pathname) ||
     pathname.startsWith("/api/auth") ||

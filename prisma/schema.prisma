@@ -37,9 +37,13 @@ model User {
   points      Int     @default(0)
   tier        String  @default("Bronze")
 
-  bannedAt   DateTime?
-  banReason  String?
-  mutedUntil DateTime?
+  bannedAt    DateTime?
+  bannedUntil DateTime? // null + bannedAt = permanen; terisi = ban sementara
+  banReason   String?
+  mutedUntil  DateTime?
+
+  featuredAchievement String? // key achievement yang dipajang di profil
+  notifyEmailDigest   Boolean @default(false)
 
   // Preferensi notifikasi
   notifyMention  Boolean @default(true)
@@ -113,6 +117,13 @@ model User {
   groupsOwned      GroupChat[]   @relation("groupOwner")
   groupMemberships GroupMember[]
   groupMessages    GroupMessage[]
+
+  closeFriends   CloseFriend[]   @relation("cfOwner")
+  closeFriendOf  CloseFriend[]   @relation("cfFriend")
+  threadMutes    ThreadMute[]
+  drafts         Draft[]
+  storyPollVotes StoryPollVote[]
+  seasonAwards   SeasonAward[]
 
   @@index([points])
   @@index([lastSeenAt])
@@ -271,6 +282,7 @@ model Thread {
   posts         Post[]
   bookmarks     Bookmark[]
   subscriptions ThreadSubscription[]
+  mutes         ThreadMute[]
   poll          Poll?
 
   @@index([categoryId, pinned, lastPostAt])
@@ -378,8 +390,10 @@ model Status {
   authorId   String?
   body       String
   pinned     Boolean   @default(false)
-  repostOfId String?
-  createdAt  DateTime  @default(now())
+  repostOfId    String?
+  publishAt     DateTime  @default(now()) // untuk posting terjadwal
+  mentionsSentAt DateTime? // null = notifikasi mention belum dikirim (scheduled)
+  createdAt     DateTime  @default(now())
   editedAt   DateTime?
   deletedAt  DateTime?
 
@@ -396,6 +410,7 @@ model Status {
   @@index([createdAt])
   @@index([authorId, createdAt])
   @@index([repostOfId])
+  @@index([publishAt])
 }
 
 model StatusReaction {
@@ -587,21 +602,39 @@ model Hashtag {
 /* ========================================================================== */
 
 model Story {
-  id        String   @id @default(cuid())
-  authorId  String?
-  mediaUrl  String   @default("")
-  mediaType String // image | video | text
-  bgColor   String? // untuk story teks
-  caption   String?
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+  id           String   @id @default(cuid())
+  authorId     String?
+  mediaUrl     String   @default("")
+  mediaType    String // image | video | text
+  bgColor      String? // untuk story teks
+  caption      String?
+  audience     String   @default("all") // all | close
+  pollQuestion String?
+  pollOptions  String[] @default([])
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
 
   author    User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
   views     StoryView[]
   reactions StoryReaction[]
+  pollVotes StoryPollVote[]
 
   @@index([expiresAt])
   @@index([authorId, createdAt])
+}
+
+model StoryPollVote {
+  id        String   @id @default(cuid())
+  storyId   String
+  userId    String
+  choice    Int
+  createdAt DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([storyId])
 }
 
 model Highlight {
@@ -926,4 +959,65 @@ model GroupMessage {
   sender User?     @relation(fields: [senderId], references: [id], onDelete: SetNull)
 
   @@index([groupId, createdAt])
+}
+
+/* ========================================================================== */
+/*  Close friends, mute thread, draf, reward musim                             */
+/* ========================================================================== */
+
+model CloseFriend {
+  id        String   @id @default(cuid())
+  ownerId   String
+  friendId  String
+  createdAt DateTime @default(now())
+
+  owner  User @relation("cfOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  friend User @relation("cfFriend", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, friendId])
+  @@index([ownerId])
+}
+
+model ThreadMute {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+  @@index([threadId])
+}
+
+model Draft {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String // status | thread
+  title      String?
+  body       String   @default("")
+  categoryId String?
+  media      Json?
+  scheduledFor DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+model SeasonAward {
+  id        String   @id @default(cuid())
+  userId    String
+  season    Int
+  rank      Int
+  points    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, season])
+  @@index([season])
 }

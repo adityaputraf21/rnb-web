@@ -22,8 +22,18 @@ export async function PATCH(req: Request) {
     bannerImage,
     image,
     mutedKeywords,
+    featuredAchievement,
   } = await req.json().catch(() => ({}));
   const data: Record<string, string | null> = {};
+
+  if (featuredAchievement === null || featuredAchievement === "") {
+    data.featuredAchievement = null;
+  } else if (typeof featuredAchievement === "string") {
+    const earned = await prisma.userAchievement.findUnique({
+      where: { userId_key: { userId: user.id, key: featuredAchievement } },
+    });
+    if (earned) data.featuredAchievement = featuredAchievement;
+  }
 
   if (typeof name === "string") data.name = name.trim().slice(0, 60) || null;
   if (typeof mutedKeywords === "string") {
@@ -80,6 +90,7 @@ export async function PATCH(req: Request) {
       bannerImage: true,
       image: true,
       mutedKeywords: true,
+      featuredAchievement: true,
     },
   });
   return NextResponse.json(updated);
