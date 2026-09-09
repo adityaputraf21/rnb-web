@@ -9,6 +9,8 @@ export type SiteConfig = {
   bannerVariant: string;
   registrationOpen: boolean;
   maintenanceMode: boolean;
+  webhookUsername: string;
+  webhookAvatar: string | null;
 };
 
 const DEFAULTS: SiteConfig = {
@@ -19,6 +21,8 @@ const DEFAULTS: SiteConfig = {
   bannerVariant: "info",
   registrationOpen: true,
   maintenanceMode: false,
+  webhookUsername: "RnB",
+  webhookAvatar: null,
 };
 
 /**

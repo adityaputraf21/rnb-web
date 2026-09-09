@@ -111,14 +111,16 @@ model VerificationToken {
 /* ========================================================================== */
 
 model SiteConfig {
-  id                 String  @id @default("singleton")
-  siteName           String  @default("RnB")
-  tagline            String  @default("Rise Never Break")
-  bannerText         String?
-  bannerVariant      String  @default("info") // info | warning | success
-  registrationOpen   Boolean @default(true)
-  maintenanceMode    Boolean @default(false)
-  updatedAt          DateTime @updatedAt
+  id               String   @id @default("singleton")
+  siteName         String   @default("RnB")
+  tagline          String   @default("Rise Never Break")
+  bannerText       String?
+  bannerVariant    String   @default("info") // info | warning | success
+  registrationOpen Boolean  @default(true)
+  maintenanceMode  Boolean  @default(false)
+  webhookUsername  String   @default("RnB")
+  webhookAvatar    String?
+  updatedAt        DateTime @updatedAt
 }
 
 /* ========================================================================== */

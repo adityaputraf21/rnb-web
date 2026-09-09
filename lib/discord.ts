@@ -100,13 +100,7 @@ export interface SendWebhookOptions {
 export async function sendDiscordWebhook(
   options: SendWebhookOptions,
 ): Promise<boolean> {
-  const {
-    category,
-    content,
-    username = "RnB Web",
-    avatarUrl,
-    webhookUrl: manualUrl,
-  } = options;
+  const { category, content, webhookUrl: manualUrl } = options;
 
   const url = manualUrl ?? process.env[WEBHOOK_ENV[category]];
   if (!url) {
@@ -114,6 +108,20 @@ export async function sendDiscordWebhook(
       `[discord] webhook URL untuk kategori "${category}" tidak diset (${WEBHOOK_ENV[category]}). Notifikasi dilewati.`,
     );
     return false;
+  }
+
+  // Nama & avatar: pakai yang di-pass, kalau tidak ambil dari setelan situs.
+  let username = options.username;
+  let avatarUrl = options.avatarUrl;
+  if (!username || avatarUrl === undefined) {
+    try {
+      const { getSiteConfig } = await import("@/lib/site-config");
+      const cfg = await getSiteConfig();
+      username ??= cfg.webhookUsername || "RnB";
+      avatarUrl ??= cfg.webhookAvatar ?? undefined;
+    } catch {
+      username ??= "RnB";
+    }
   }
 
   // Normalisasi embeds + inject warna default kalau belum diisi.

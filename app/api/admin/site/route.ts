@@ -26,6 +26,12 @@ export async function PATCH(req: Request) {
     data.registrationOpen = b.registrationOpen;
   if (typeof b.maintenanceMode === "boolean")
     data.maintenanceMode = b.maintenanceMode;
+  if (typeof b.webhookUsername === "string" && b.webhookUsername.trim())
+    data.webhookUsername = b.webhookUsername.trim().slice(0, 80);
+  if (typeof b.webhookAvatar === "string")
+    data.webhookAvatar = /^https:\/\//.test(b.webhookAvatar)
+      ? b.webhookAvatar
+      : null;
 
   const cfg = await prisma.siteConfig.upsert({
     where: { id: "singleton" },

@@ -20,6 +20,8 @@ export default async function AdminSitePage() {
           bannerVariant: cfg.bannerVariant,
           registrationOpen: cfg.registrationOpen,
           maintenanceMode: cfg.maintenanceMode,
+          webhookUsername: cfg.webhookUsername,
+          webhookAvatar: cfg.webhookAvatar,
         }}
       />
     </div>
