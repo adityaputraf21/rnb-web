@@ -163,11 +163,12 @@ export function forumThreadEmbed(t: {
   authorName: string;
   categoryName?: string;
   excerpt?: string;
+  path?: string;
 }): DiscordEmbed {
   return {
     author: { name: "💬 Thread Forum Baru" },
     title: t.title,
-    url: `${SITE_URL}/forum/${t.id}`,
+    url: `${SITE_URL}${t.path ?? `/forum/${t.id}`}`,
     description: t.excerpt,
     fields: [
       { name: "Penulis", value: t.authorName, inline: true },

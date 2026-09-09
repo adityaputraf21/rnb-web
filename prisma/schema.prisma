@@ -1,23 +1,246 @@
-// Prisma schema — sesuaikan datasource kalau kamu pakai provider lain.
-// Untuk Vercel: pakai Postgres (Neon / Vercel Postgres / Supabase).
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")       // pooled — dipakai runtime (Vercel serverless)
-  directUrl = env("DATABASE_URL_UNPOOLED") // direct — dipakai `prisma db push` / migrate
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-model Announcement {
+/* ========================================================================== */
+/*  Auth.js (NextAuth v5) models                                               */
+/* ========================================================================== */
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  // Profil forum
+  username  String  @unique
+  bio       String?
+  discordId String? @unique
+  role      Role    @default(USER)
+  points    Int     @default(0)
+  tier      String  @default("Bronze")
+  bannedAt  DateTime?
+  banReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  threads       Thread[]
+  posts         Post[]
+  reactions     Reaction[]
+  attachments   Attachment[]
+  announcements Announcement[]
+  events        Event[]
+
+  notifications     Notification[] @relation("recipient")
+  actedNotifications Notification[] @relation("actor")
+  auditLogs         AuditLog[]     @relation("moderator")
+
+  @@index([points])
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/* ========================================================================== */
+/*  Forum                                                                      */
+/* ========================================================================== */
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  color       String   @default("#5865F2")
+  position    Int      @default(0)
+  locked      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  threads Thread[]
+
+  @@index([position])
+}
+
+model Thread {
   id         String   @id @default(cuid())
   title      String
-  body       String
-  source     String   @default("web") // "web" | "discord"
-  authorName String?
+  slug       String   @unique
+  categoryId String
+  authorId   String?
+  pinned     Boolean  @default(false)
+  locked     Boolean  @default(false)
+  views      Int      @default(0)
   createdAt  DateTime @default(now())
+  lastPostAt DateTime @default(now())
+  deletedAt  DateTime?
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  author   User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  posts    Post[]
+
+  @@index([categoryId, pinned, lastPostAt])
+  @@index([lastPostAt])
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  threadId  String
+  authorId  String?
+  body      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  thread      Thread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  reactions   Reaction[]
+  attachments Attachment[]
+
+  @@index([threadId, createdAt])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, emoji])
+  @@index([postId])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  url         String
+  pathname    String
+  name        String
+  contentType String
+  size        Int
+  uploaderId  String?
+  postId      String?
+  createdAt   DateTime @default(now())
+
+  uploader User? @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  post     Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([postId])
+}
+
+/* ========================================================================== */
+/*  Notifications                                                              */
+/* ========================================================================== */
+
+enum NotificationType {
+  MENTION
+  REPLY
+  REACTION
+  MOD_ACTION
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  actorId   String?
+  type      NotificationType
+  title     String
+  body      String?
+  url       String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user  User  @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("actor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read, createdAt])
+}
+
+/* ========================================================================== */
+/*  Moderation                                                                 */
+/* ========================================================================== */
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  moderatorId String?
+  action     String
+  targetType String
+  targetId   String
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  moderator User? @relation("moderator", fields: [moderatorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}
+
+/* ========================================================================== */
+/*  Announcements & Events                                                     */
+/* ========================================================================== */
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  source    String   @default("web") // "web" | "discord"
+  authorId  String?
+  authorName String?
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
 }
@@ -27,30 +250,14 @@ model Event {
   title         String
   description   String?
   startsAt      DateTime?
-  dateLabel     String // string tanggal asli dari command / form
+  dateLabel     String
+  location      String?
   source        String    @default("web")
+  authorId      String?
   createdByName String?
   createdAt     DateTime  @default(now())
 
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
   @@index([startsAt])
-}
-
-model ForumThread {
-  id           String   @id @default(cuid())
-  title        String
-  body         String
-  authorName   String
-  categoryName String?
-  createdAt    DateTime @default(now())
-
-  @@index([createdAt])
-}
-
-model LeaderboardEntry {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  points    Int      @default(0)
-  tier      String   @default("Bronze")
-  rank      Int?
-  updatedAt DateTime @updatedAt
 }

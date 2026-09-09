@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiRole } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { sendDiscordWebhook, eventEmbed } from "@/lib/discord";
 
@@ -12,17 +13,20 @@ export async function GET() {
   return NextResponse.json(items);
 }
 
-/**
- * body: { title: string, date: string, description?: string, createdByName?: string }
- */
 export async function POST(req: Request) {
-  const { title, date, description, createdByName } = await req
+  let user;
+  try {
+    user = await apiRole("MODERATOR");
+  } catch (res) {
+    return res as Response;
+  }
+
+  const { title, date, description, location } = await req
     .json()
     .catch(() => ({}));
-
   if (!title || !date) {
     return NextResponse.json(
-      { error: "title & date wajib diisi" },
+      { error: "judul & tanggal wajib diisi" },
       { status: 400 },
     );
   }
@@ -30,11 +34,13 @@ export async function POST(req: Request) {
   const parsed = new Date(date);
   const event = await prisma.event.create({
     data: {
-      title,
-      description: description ?? null,
+      title: String(title).trim(),
+      description: description ? String(description).trim() : null,
+      location: location ? String(location).trim() : null,
       startsAt: Number.isNaN(parsed.getTime()) ? null : parsed,
       dateLabel: String(date),
-      createdByName: createdByName ?? null,
+      authorId: user.id,
+      createdByName: user.name ?? user.username,
       source: "web",
     },
   });

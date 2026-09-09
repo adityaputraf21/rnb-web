@@ -1,58 +1,71 @@
-* {
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 235 86% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 235 86% 65%;
+    --radius: 0.65rem;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 95%;
+    --card: 240 10% 6.5%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 10% 6.5%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 235 86% 68%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 5% 60%;
+    --accent: 240 5% 16%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5% 16%;
+    --input: 240 5% 18%;
+    --ring: 235 86% 68%;
+  }
 }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family:
-    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #0f1115;
-  color: #e7e9ee;
-  line-height: 1.55;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
 }
 
-main {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 48px 20px 96px;
+/* Markdown content */
+.prose :where(code):not(:where([class~="not-prose"] *))::before,
+.prose :where(code):not(:where([class~="not-prose"] *))::after {
+  content: "";
 }
-
-h1 {
-  font-size: 1.7rem;
-  margin: 0 0 4px;
-}
-
-.muted {
-  color: #9aa0ac;
-  font-size: 0.9rem;
-}
-
-section {
-  margin-top: 40px;
-}
-
-.card {
-  border: 1px solid #262a33;
-  border-radius: 10px;
-  padding: 16px 18px;
-  margin-top: 12px;
-  background: #161922;
-}
-
-.card h3 {
-  margin: 0 0 4px;
-  font-size: 1.05rem;
-}
-
-.tag {
-  display: inline-block;
-  font-size: 0.72rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #23272f;
-  color: #9aa0ac;
-  margin-left: 8px;
-  vertical-align: middle;
+.prose img {
+  @apply rounded-lg border;
 }

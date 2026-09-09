@@ -68,11 +68,19 @@ export async function POST(req: Request) {
     const commandName: string = data.name;
 
     // Siapa yang manggil (untuk audit / field "Oleh").
+    const discordUser = interaction.member?.user ?? interaction.user;
     const invoker =
-      interaction.member?.user?.global_name ??
-      interaction.member?.user?.username ??
-      interaction.user?.username ??
-      "discord";
+      discordUser?.global_name ?? discordUser?.username ?? "discord";
+
+    // Cocokkan ke akun website lewat discordId (kalau sudah pernah login).
+    const linked = discordUser?.id
+      ? await prisma.user.findUnique({
+          where: { discordId: discordUser.id },
+          select: { id: true, role: true },
+        })
+      : null;
+    const authorId =
+      linked && linked.role !== "USER" ? linked.id : null;
 
     try {
       switch (commandName) {
@@ -92,6 +100,7 @@ export async function POST(req: Request) {
               title: judul,
               body: isi,
               source: "discord",
+              authorId,
               authorName: invoker,
             },
           });
@@ -138,6 +147,7 @@ export async function POST(req: Request) {
               startsAt: isValidDate ? parsed : null,
               dateLabel: tanggalRaw,
               source: "discord",
+              authorId,
               createdByName: invoker,
             },
           });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiRole } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { sendDiscordWebhook, announcementEmbed } from "@/lib/discord";
 
@@ -6,28 +7,38 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const items = await prisma.announcement.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
     take: 50,
+    include: { author: { select: { username: true, name: true } } },
   });
   return NextResponse.json(items);
 }
 
-/**
- * Buat pengumuman baru dari web -> simpan DB -> notifikasi Discord.
- * body: { title: string, body: string, authorName?: string }
- */
 export async function POST(req: Request) {
-  const { title, body, authorName } = await req.json().catch(() => ({}));
+  let user;
+  try {
+    user = await apiRole("MODERATOR");
+  } catch (res) {
+    return res as Response;
+  }
 
+  const { title, body, pinned } = await req.json().catch(() => ({}));
   if (!title || !body) {
     return NextResponse.json(
-      { error: "title & body wajib diisi" },
+      { error: "judul & isi wajib diisi" },
       { status: 400 },
     );
   }
 
   const announcement = await prisma.announcement.create({
-    data: { title, body, authorName: authorName ?? null, source: "web" },
+    data: {
+      title: String(title).trim(),
+      body: String(body).trim(),
+      authorId: user.id,
+      authorName: user.name ?? user.username,
+      pinned: !!pinned,
+      source: "web",
+    },
   });
 
   await sendDiscordWebhook({
