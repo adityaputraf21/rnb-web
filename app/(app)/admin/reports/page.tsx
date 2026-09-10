@@ -34,6 +34,33 @@ export default async function AdminReportsPage() {
           targetPreview = s.body.slice(0, 240) || "(status berisi gambar)";
           targetUrl = `/feed/${s.id}`;
         }
+      } else if (r.targetType === "listing") {
+        const l = await prisma.listing.findUnique({ where: { id: r.targetId } });
+        if (l) {
+          targetPreview = `${l.title} — ${l.description.slice(0, 200)}`;
+          targetUrl = `/market/${l.slug}`;
+        }
+      } else if (r.targetType === "wiki") {
+        const w = await prisma.wikiPage.findUnique({ where: { id: r.targetId } });
+        if (w) {
+          targetPreview = `${w.title} — ${w.body.slice(0, 200)}`;
+          targetUrl = `/wiki/${w.slug}`;
+        }
+      } else if (r.targetType === "story") {
+        const s = await prisma.story.findUnique({
+          where: { id: r.targetId },
+          include: { author: { select: { username: true } } },
+        });
+        if (s) {
+          targetPreview = `Story @${s.author?.username ?? "?"} — ${s.caption ?? s.mediaType}`;
+          targetUrl = s.author ? `/u/${s.author.username}` : null;
+        }
+      } else if (r.targetType === "user") {
+        const u = await prisma.user.findUnique({ where: { id: r.targetId } });
+        if (u) {
+          targetPreview = `@${u.username}${u.bio ? ` — ${u.bio.slice(0, 180)}` : ""}`;
+          targetUrl = `/u/${u.username}`;
+        }
       } else {
         const t = await prisma.thread.findUnique({
           where: { id: r.targetId },

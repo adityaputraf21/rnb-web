@@ -43,10 +43,15 @@ export default async function LoginPage({
             callbackUrl={callbackUrl || "/feed"}
           />
           <p className="text-xs text-muted-foreground">
-            Dengan masuk kamu setuju menjaga forum tetap sehat.{" "}
-            <Link href="/" className="underline">
-              Kembali
+            Dengan masuk kamu setuju dengan{" "}
+            <Link href="/terms" className="underline">
+              Ketentuan
+            </Link>{" "}
+            &amp;{" "}
+            <Link href="/privacy" className="underline">
+              Kebijakan Privasi
             </Link>
+            .
           </p>
         </CardContent>
       </Card>

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { slugBase } from "@/lib/slug";
 import { isCategory } from "@/lib/marketplace";
 import { blockedIdsFor } from "@/lib/blocks";
+import { assertListingRate } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
   let user;
   try {
     user = await apiWriter();
+    await assertListingRate(user.id);
   } catch (res) {
     return res as Response;
   }

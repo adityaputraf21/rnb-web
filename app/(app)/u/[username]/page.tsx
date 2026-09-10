@@ -22,6 +22,7 @@ import { HighlightsRow } from "@/components/stories/highlights-row";
 import { shapeStatus, statusInclude } from "@/lib/status-shape";
 import { hasRole } from "@/lib/auth-helpers";
 import { FollowButton } from "@/components/follow-button";
+import { ReportButton } from "@/components/forum/report-button";
 import { ActivityHeatmap } from "@/components/profile/activity-heatmap";
 import { activityHeatmap } from "@/lib/heatmap";
 import { initials } from "@/lib/utils";
@@ -221,6 +222,7 @@ export default async function ProfilePage({
               initialFollowing={!!iFollow}
               loggedIn={!!me}
             />
+            <ReportButton targetType="user" targetId={user.id} />
           </div>
         )}
       </div>

@@ -19,7 +19,14 @@ export function ReportButton({
   targetId,
   label,
 }: {
-  targetType: "post" | "thread" | "status" | "listing" | "wiki";
+  targetType:
+    | "post"
+    | "thread"
+    | "status"
+    | "listing"
+    | "wiki"
+    | "user"
+    | "story";
   targetId: string;
   label?: string;
 }) {

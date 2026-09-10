@@ -9,6 +9,8 @@ const PUBLIC = [
   "/",
   "/login",
   "/banned",
+  "/terms",
+  "/privacy",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",

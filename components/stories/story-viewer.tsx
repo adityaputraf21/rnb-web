@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { X, Trash2, Eye, ChevronLeft, ChevronRight, Send, Star } from "lucide-react";
+import {
+  X,
+  Trash2,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Send,
+  Star,
+  Flag,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { initials, cn } from "@/lib/utils";
@@ -148,6 +157,24 @@ export function StoryViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [story, next, onViewed, paused, track]);
 
+  async function reportStory() {
+    if (!story) return;
+    const reason = prompt("Alasan melaporkan story ini:");
+    if (!reason || reason.trim().length < 3) return;
+    const res = await fetch("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetType: "story",
+        targetId: story.id,
+        reason,
+      }),
+    });
+    toast[res.ok ? "success" : "error"](
+      res.ok ? "Laporan terkirim ke moderator" : "Gagal mengirim laporan",
+    );
+  }
+
   async function saveHighlight() {
     if (!story) return;
     const res = await fetch("/api/highlights", {
@@ -229,6 +256,11 @@ export function StoryViewer({
             {story.mine && (track || onDelete) && (
               <button onClick={del}>
                 <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+            {!story.mine && track && (
+              <button onClick={reportStory} title="Laporkan">
+                <Flag className="h-4 w-4" />
               </button>
             )}
             <button onClick={onClose}>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiWriter, getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { blockedIdsFor } from "@/lib/blocks";
+import { assertStoryRate } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -118,6 +119,7 @@ export async function POST(req: Request) {
   let user;
   try {
     user = await apiWriter();
+    await assertStoryRate(user.id);
   } catch (res) {
     return res as Response;
   }

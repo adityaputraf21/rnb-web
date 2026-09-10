@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/markdown";
 import { WikiLockToggle } from "@/components/wiki/wiki-lock-toggle";
+import { ReportButton } from "@/components/forum/report-button";
 import { timeAgo } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +78,12 @@ export default async function WikiPageView({
       </p>
 
       {page.body.trim() ? (
-        <Markdown className="prose-sm sm:prose-base">{page.body}</Markdown>
+        <>
+          <Markdown className="prose-sm sm:prose-base">{page.body}</Markdown>
+          <div className="pt-2">
+            <ReportButton targetType="wiki" targetId={page.id} />
+          </div>
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">
           Halaman ini masih kosong.{" "}

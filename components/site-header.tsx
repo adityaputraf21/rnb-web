@@ -1,10 +1,16 @@
 import Link from "next/link";
-import { MessagesSquare, Mail } from "lucide-react";
+import { MessagesSquare, Mail, ChevronDown } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { getSiteConfig } from "@/lib/site-config";
 import { unreadDMCount } from "@/lib/dm";
 import { unreadGroupCount } from "@/lib/group";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { NotificationsBell } from "@/components/notifications-bell";
@@ -23,10 +29,12 @@ export async function SiteHeader() {
       ).reduce((a, b) => a + b, 0)
     : 0;
 
-  const NAV = [
+  const PRIMARY = [
     { href: "/feed", label: "Feed" },
-    { href: "/explore", label: "Jelajah" },
     { href: "/forum", label: "Forum" },
+    { href: "/explore", label: "Jelajah" },
+  ];
+  const MORE = [
     ...(cfg.blogEnabled ? [{ href: "/blog", label: "Blog" }] : []),
     { href: "/wiki", label: "Wiki" },
     { href: "/market", label: "Pasar" },
@@ -45,11 +53,25 @@ export async function SiteHeader() {
           {cfg.siteName}
         </Link>
         <nav className="hidden items-center gap-1 sm:flex">
-          {NAV.map((n) => (
+          {PRIMARY.map((n) => (
             <Button key={n.href} variant="ghost" size="sm" asChild>
               <Link href={n.href}>{n.label}</Link>
             </Button>
           ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                Lainnya <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {MORE.map((n) => (
+                <DropdownMenuItem key={n.href} asChild>
+                  <Link href={n.href}>{n.label}</Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
         <div className="ml-auto flex items-center gap-1">
           <SearchBox />

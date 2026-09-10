@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Link from "next/link";
 import { Providers } from "@/components/providers";
 import { SiteHeader } from "@/components/site-header";
 import { SiteBanner } from "@/components/site-banner";
@@ -27,9 +28,19 @@ export default function RootLayout({
           <SiteHeader />
           <main className="container py-8">{children}</main>
           <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-            RnB · Rise Never Break · tekan{" "}
-            <kbd className="rounded border px-1 text-xs">Ctrl</kbd>+
-            <kbd className="rounded border px-1 text-xs">K</kbd> untuk cari
+            <p>
+              RnB · Rise Never Break · tekan{" "}
+              <kbd className="rounded border px-1 text-xs">Ctrl</kbd>+
+              <kbd className="rounded border px-1 text-xs">K</kbd> untuk cari
+            </p>
+            <p className="mt-2 space-x-3">
+              <Link href="/terms" className="hover:underline">
+                Ketentuan
+              </Link>
+              <Link href="/privacy" className="hover:underline">
+                Privasi
+              </Link>
+            </p>
           </footer>
         </Providers>
       </body>

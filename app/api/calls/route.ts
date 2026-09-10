@@ -3,6 +3,7 @@ import { apiUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { canDM } from "@/lib/dm";
 import { notify } from "@/lib/notifications";
+import { assertCallRate } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
   let me;
   try {
     me = await apiUser();
+    await assertCallRate(me.id);
   } catch (res) {
     return res as Response;
   }

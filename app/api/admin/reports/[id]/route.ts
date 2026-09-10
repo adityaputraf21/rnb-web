@@ -27,21 +27,28 @@ export async function PATCH(
   // Aksi opsional: hapus konten yang dilaporkan.
   if (action === "delete" && status === "RESOLVED") {
     const now = new Date();
-    if (report.targetType === "post") {
-      await prisma.post.updateMany({
-        where: { id: report.targetId },
-        data: { deletedAt: now },
-      });
-    } else if (report.targetType === "status") {
-      await prisma.status.updateMany({
-        where: { id: report.targetId },
-        data: { deletedAt: now },
-      });
-    } else {
-      await prisma.thread.updateMany({
-        where: { id: report.targetId },
-        data: { deletedAt: now },
-      });
+    const tid = report.targetId;
+    switch (report.targetType) {
+      case "post":
+        await prisma.post.updateMany({ where: { id: tid }, data: { deletedAt: now } });
+        break;
+      case "status":
+        await prisma.status.updateMany({ where: { id: tid }, data: { deletedAt: now } });
+        break;
+      case "listing":
+        await prisma.listing.deleteMany({ where: { id: tid } });
+        break;
+      case "story":
+        await prisma.story.deleteMany({ where: { id: tid } });
+        break;
+      case "wiki":
+        await prisma.wikiPage.deleteMany({ where: { id: tid } });
+        break;
+      case "user":
+        // jangan hapus user dari sini — cukup catat; moderasi user lewat panel Pengguna
+        break;
+      default:
+        await prisma.thread.updateMany({ where: { id: tid }, data: { deletedAt: now } });
     }
   }
 

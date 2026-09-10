@@ -15,7 +15,9 @@ export async function POST(req: Request) {
 
   const { targetType, targetId, reason } = await req.json().catch(() => ({}));
   if (
-    !["post", "thread", "status", "listing", "wiki"].includes(targetType) ||
+    !["post", "thread", "status", "listing", "wiki", "user", "story"].includes(
+      targetType,
+    ) ||
     !targetId ||
     typeof reason !== "string" ||
     reason.trim().length < 3

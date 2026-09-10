@@ -7,6 +7,7 @@ import { PushToggle } from "@/components/push-toggle";
 import { DiscordSync } from "@/components/discord-sync";
 import { FeaturedBadgePicker } from "@/components/featured-badge-picker";
 import { CloseFriendsManager } from "@/components/close-friends-manager";
+import { AccountDanger } from "@/components/account-danger";
 import { getSiteConfig } from "@/lib/site-config";
 
 export const metadata = { title: "Pengaturan" };
@@ -85,6 +86,7 @@ export default async function SettingsPage() {
         }}
       />
       <BlockedUsers initial={blocks.map((b) => b.blocked)} />
+      <AccountDanger username={user?.username ?? session.username} />
     </div>
   );
 }

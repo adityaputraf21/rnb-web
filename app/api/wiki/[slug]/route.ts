@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiWriter, apiRole, hasRole } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { modLog } from "@/lib/mod-log";
+import { assertWikiRate } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,7 @@ export async function PATCH(
   let user;
   try {
     user = await apiWriter();
+    await assertWikiRate(user.id);
   } catch (res) {
     return res as Response;
   }
