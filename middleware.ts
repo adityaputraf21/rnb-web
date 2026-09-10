@@ -46,7 +46,9 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/.well-known/") ||
-    pathname.startsWith("/api/discord");
+    pathname.startsWith("/api/discord") ||
+    // aset statis (punya ekstensi file di segmen terakhir) — mis. ikon PWA
+    /\.[a-z0-9]{2,5}$/i.test(pathname);
 
   if (isPublic) return res;
 
