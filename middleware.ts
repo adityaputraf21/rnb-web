@@ -11,6 +11,7 @@ const PUBLIC = [
   "/banned",
   "/terms",
   "/privacy",
+  "/offline",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",
@@ -44,6 +45,7 @@ export function middleware(req: NextRequest) {
     PUBLIC.includes(pathname) ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/.well-known/") ||
     pathname.startsWith("/api/discord");
 
   if (isPublic) return res;
