@@ -14,7 +14,7 @@ interface ThreadReminderProps {
   reminder?: { scheduledFor: Date } | null;
 }
 
-const JAKARTA_OFFSET = 7; // UTC+7
+const JAKARTA_OFFSET = 8; // WITA UTC+8
 
 function toJakartaString(utcDate: Date): { date: string; time: string } {
   const jakartaDate = addHours(utcDate, JAKARTA_OFFSET);
@@ -109,7 +109,7 @@ export function ThreadReminder({ threadId, reminder }: ThreadReminderProps) {
                   "dd MMM yyyy HH:mm",
                   { locale: idLocale },
                 )}{" "}
-                WIB
+                WITA
               </strong>
             </span>
           </div>

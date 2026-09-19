@@ -172,8 +172,8 @@ async function threadReminders() {
       url: `/forum/${reminder.thread.id}`,
     }).catch(() => {});
 
-    // Kirim ke Discord (waktu Jakarta)
-    const jakartaDate = new Date(reminder.scheduledFor.getTime() + 7 * 60 * 60 * 1000);
+    // Kirim ke Discord (waktu WITA)
+    const jakartaDate = new Date(reminder.scheduledFor.getTime() + 8 * 60 * 60 * 1000);
     const scheduledDate = formatDate(jakartaDate, "EEEE, dd MMMM yyyy", {
       locale: idLocale,
     });
@@ -187,7 +187,7 @@ async function threadReminders() {
         threadId: reminder.thread.id,
         threadTitle: reminder.thread.title,
         scheduledDate,
-        scheduledTime: `${scheduledTime} WIB`,
+        scheduledTime: `${scheduledTime} WITA`,
       }),
     }).catch(() => {});
 
