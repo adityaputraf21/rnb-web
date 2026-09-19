@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { formatDate } from "date-fns";
+import { formatDate, addHours } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
 interface ThreadReminderProps {
@@ -14,18 +14,29 @@ interface ThreadReminderProps {
   reminder?: { scheduledFor: Date } | null;
 }
 
+const JAKARTA_OFFSET = 7; // UTC+7
+
+function toJakartaString(utcDate: Date): { date: string; time: string } {
+  const jakartaDate = addHours(utcDate, JAKARTA_OFFSET);
+  return {
+    date: jakartaDate.toISOString().split("T")[0],
+    time: jakartaDate.toISOString().split("T")[1].substring(0, 5),
+  };
+}
+
+function toUTC(date: string, time: string): Date {
+  const jakartaDate = new Date(`${date}T${time}:00`);
+  return addHours(jakartaDate, -JAKARTA_OFFSET);
+}
+
 export function ThreadReminder({ threadId, reminder }: ThreadReminderProps) {
   const [loading, setLoading] = React.useState(false);
   const [showForm, setShowForm] = React.useState(!reminder);
   const [date, setDate] = React.useState<string>(
-    reminder
-      ? reminder.scheduledFor.toISOString().split("T")[0]
-      : "",
+    reminder ? toJakartaString(reminder.scheduledFor).date : "",
   );
   const [time, setTime] = React.useState<string>(
-    reminder
-      ? reminder.scheduledFor.toISOString().split("T")[1].substring(0, 5)
-      : "10:00",
+    reminder ? toJakartaString(reminder.scheduledFor).time : "10:00",
   );
 
   async function handleSetReminder() {
@@ -40,7 +51,7 @@ export function ThreadReminder({ threadId, reminder }: ThreadReminderProps) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          scheduledFor: new Date(`${date}T${time}:00Z`),
+          scheduledFor: toUTC(date, time),
         }),
       });
 
@@ -93,9 +104,12 @@ export function ThreadReminder({ threadId, reminder }: ThreadReminderProps) {
             <span className="text-blue-700">
               Reminder dijadwalkan untuk{" "}
               <strong>
-                {formatDate(reminder.scheduledFor, "dd MMM yyyy HH:mm", {
-                  locale: idLocale,
-                })}
+                {formatDate(
+                  addHours(reminder.scheduledFor, JAKARTA_OFFSET),
+                  "dd MMM yyyy HH:mm",
+                  { locale: idLocale },
+                )}{" "}
+                WIB
               </strong>
             </span>
           </div>
