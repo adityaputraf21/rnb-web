@@ -9,6 +9,7 @@ import { PostCard, type PostView } from "@/components/forum/post-card";
 import { ReplyForm } from "@/components/forum/reply-form";
 import { ThreadModActions } from "@/components/forum/thread-mod-actions";
 import { ThreadToolbar } from "@/components/forum/thread-toolbar";
+import { ThreadReminder } from "@/components/thread-reminder";
 import { Poll } from "@/components/poll";
 import { timeAgo } from "@/lib/format";
 
@@ -48,7 +49,7 @@ export default async function ThreadPage({
   const user = await getCurrentUser();
   const canModerate = hasRole(user, "MODERATOR");
 
-  const [bookmark, subscription, allCategories, meRow, threadMute] =
+  const [bookmark, subscription, allCategories, meRow, threadMute, threadReminder] =
     await Promise.all([
     user
       ? prisma.bookmark.findUnique({
@@ -75,6 +76,12 @@ export default async function ThreadPage({
     user
       ? prisma.threadMute.findUnique({
           where: { userId_threadId: { userId: user.id, threadId: thread.id } },
+        })
+      : null,
+    user
+      ? prisma.threadReminder.findUnique({
+          where: { threadId_userId: { threadId: thread.id, userId: user.id } },
+          select: { scheduledFor: true },
         })
       : null,
   ]);
@@ -229,6 +236,17 @@ export default async function ThreadPage({
         initialPinnedToProfile={meRow?.pinnedThreadId === thread.id}
         initialMuted={!!threadMute}
       />
+
+      {user && (
+        <ThreadReminder
+          threadId={thread.id}
+          reminder={
+            threadReminder
+              ? { scheduledFor: new Date(threadReminder.scheduledFor) }
+              : null
+          }
+        />
+      )}
 
       {pollData && pageNum === 1 && (
         <Poll poll={pollData} loggedIn={!!user} />

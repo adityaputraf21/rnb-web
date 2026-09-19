@@ -121,6 +121,7 @@ model User {
   closeFriends   CloseFriend[]   @relation("cfOwner")
   closeFriendOf  CloseFriend[]   @relation("cfFriend")
   threadMutes    ThreadMute[]
+  threadReminders ThreadReminder[]
   drafts         Draft[]
   storyPollVotes StoryPollVote[]
   seasonAwards   SeasonAward[]
@@ -289,6 +290,7 @@ model Thread {
   bookmarks     Bookmark[]
   subscriptions ThreadSubscription[]
   mutes         ThreadMute[]
+  reminders     ThreadReminder[]
   poll          Poll?
 
   @@index([categoryId, pinned, lastPostAt])
@@ -1102,6 +1104,26 @@ model WikiRevision {
   editor User?    @relation("wikiReviser", fields: [editorId], references: [id], onDelete: SetNull)
 
   @@index([pageId, createdAt])
+}
+
+/* ========================================================================== */
+/*  Thread Reminders                                                            */
+/* ========================================================================== */
+
+model ThreadReminder {
+  id            String    @id @default(cuid())
+  threadId      String
+  userId        String
+  scheduledFor  DateTime
+  reminderSentAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([scheduledFor, reminderSentAt])
+  @@index([userId])
 }
 
 /* ========================================================================== */

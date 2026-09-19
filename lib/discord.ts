@@ -348,3 +348,21 @@ export function inviteReminderEmbed(i: {
     ],
   };
 }
+
+export function threadReminderEmbed(t: {
+  threadId: string;
+  threadTitle: string;
+  scheduledDate: string;
+  scheduledTime: string;
+}): DiscordEmbed {
+  return {
+    author: { name: "🔔 Pengingat Thread Forum" },
+    title: t.threadTitle,
+    url: `${SITE_URL}/forum/${t.threadId}`,
+    description: "Waktu untuk membaca atau ikuti thread ini!",
+    fields: [
+      { name: "Tanggal", value: t.scheduledDate, inline: true },
+      { name: "Jam", value: t.scheduledTime, inline: true },
+    ],
+  };
+}

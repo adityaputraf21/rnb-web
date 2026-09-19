@@ -8,7 +8,7 @@ import { bumpHashtags } from "@/lib/hashtags";
 import { weeklyDigest } from "@/lib/digest";
 import { seasonRollover } from "@/lib/season";
 import { periodKey } from "@/lib/quests";
-import { sendDiscordWebhook, inviteReminderEmbed } from "@/lib/discord";
+import { sendDiscordWebhook, inviteReminderEmbed, threadReminderEmbed } from "@/lib/discord";
 import { formatDate } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
@@ -146,7 +146,60 @@ async function invitationReminders() {
   return sent;
 }
 
-/** Rekap mingguan sekali per pekan ISO (idempoten via AuditLog). */
+async function threadReminders() {
+  const now = new Date();
+
+  // Cari reminder thread yang sudah saatnya (scheduledFor <= now) & belum dikirim
+  const reminders = await prisma.threadReminder.findMany({
+    where: {
+      scheduledFor: { lte: now },
+      reminderSentAt: null,
+    },
+    include: {
+      thread: { select: { id: true, title: true } },
+      user: { select: { id: true, username: true } },
+    },
+  });
+
+  let sent = 0;
+  for (const reminder of reminders) {
+    // Kirim notif ke web
+    await notify({
+      userId: reminder.user.id,
+      type: "SYSTEM",
+      title: `🔔 Pengingat: ${reminder.thread.title}`,
+      body: "Saatnya untuk membaca thread ini",
+      url: `/forum/${reminder.thread.id}`,
+    }).catch(() => {});
+
+    // Kirim ke Discord
+    const scheduledDate = formatDate(reminder.scheduledFor, "EEEE, dd MMMM yyyy", {
+      locale: idLocale,
+    });
+    const scheduledTime = formatDate(reminder.scheduledFor, "HH:mm", {
+      locale: idLocale,
+    });
+
+    await sendDiscordWebhook({
+      category: "announcement",
+      embed: threadReminderEmbed({
+        threadId: reminder.thread.id,
+        threadTitle: reminder.thread.title,
+        scheduledDate,
+        scheduledTime,
+      }),
+    }).catch(() => {});
+
+    // Mark reminder sudah dikirim
+    await prisma.threadReminder.update({
+      where: { id: reminder.id },
+      data: { reminderSentAt: new Date() },
+    });
+
+    sent += 1;
+  }
+  return sent;
+}
 async function maybeWeeklyDigest() {
   const now = new Date();
   if (now.getUTCDay() !== 1) return null; // hanya Senin
@@ -168,15 +221,16 @@ async function maybeWeeklyDigest() {
 }
 
 async function run() {
-  const [published, unbanned, reminders, inviteReminders] = await Promise.all([
+  const [published, unbanned, reminders, inviteReminders, threadRemindersSent] = await Promise.all([
     publishScheduled(),
     clearExpiredBans(),
     eventReminders(),
     invitationReminders(),
+    threadReminders(),
   ]);
   const digest = await maybeWeeklyDigest();
   const season = await seasonRollover().catch(() => null);
-  return { published, unbanned, reminders, inviteReminders, digest: !!digest, season };
+  return { published, unbanned, reminders, inviteReminders, threadReminders: threadRemindersSent, digest: !!digest, season };
 }
 
 export async function GET(req: Request) {
