@@ -8,6 +8,9 @@ import { bumpHashtags } from "@/lib/hashtags";
 import { weeklyDigest } from "@/lib/digest";
 import { seasonRollover } from "@/lib/season";
 import { periodKey } from "@/lib/quests";
+import { sendDiscordWebhook, inviteReminderEmbed } from "@/lib/discord";
+import { formatDate } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,6 +94,58 @@ async function eventReminders() {
   return sent;
 }
 
+async function invitationReminders() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Cari invitation yang scheduledFor hari ini & belum reminder dikirim
+  const invitations = await prisma.invite.findMany({
+    where: {
+      scheduledFor: { gte: today, lt: tomorrow },
+      reminderSentAt: null,
+    },
+    include: {
+      inviter: { select: { id: true, username: true, name: true } },
+    },
+  });
+
+  let sent = 0;
+  for (const inv of invitations) {
+    // Kirim notif ke web
+    await notify({
+      userId: inv.inviterId,
+      type: "SYSTEM",
+      title: "📧 Pengingat: Invitation Discord Hari Ini",
+      body: `Ajak teman bergabung dengan kode: ${inv.code}`,
+      url: "/invite",
+    }).catch(() => {});
+
+    // Kirim ke Discord
+    await sendDiscordWebhook({
+      category: "announcement",
+      embed: inviteReminderEmbed({
+        code: inv.code,
+        inviterName: inv.inviter.name ?? inv.inviter.username,
+        scheduledDate: formatDate(inv.scheduledFor!, "EEEE, dd MMMM yyyy", {
+          locale: idLocale,
+        }),
+        description: `Jangan lupa ajak teman bergabung!`,
+      }),
+    }).catch(() => {});
+
+    // Mark reminder sudah dikirim
+    await prisma.invite.update({
+      where: { id: inv.id },
+      data: { reminderSentAt: new Date() },
+    });
+
+    sent += 1;
+  }
+  return sent;
+}
+
 /** Rekap mingguan sekali per pekan ISO (idempoten via AuditLog). */
 async function maybeWeeklyDigest() {
   const now = new Date();
@@ -113,14 +168,15 @@ async function maybeWeeklyDigest() {
 }
 
 async function run() {
-  const [published, unbanned, reminders] = await Promise.all([
+  const [published, unbanned, reminders, inviteReminders] = await Promise.all([
     publishScheduled(),
     clearExpiredBans(),
     eventReminders(),
+    invitationReminders(),
   ]);
   const digest = await maybeWeeklyDigest();
   const season = await seasonRollover().catch(() => null);
-  return { published, unbanned, reminders, digest: !!digest, season };
+  return { published, unbanned, reminders, inviteReminders, digest: !!digest, season };
 }
 
 export async function GET(req: Request) {

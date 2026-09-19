@@ -31,3 +31,44 @@ export async function GET() {
     })),
   });
 }
+
+export async function POST(req: Request) {
+  let user;
+  try {
+    user = await apiUser();
+  } catch (res) {
+    return res as Response;
+  }
+
+  const { scheduledFor } = await req.json().catch(() => ({}));
+  if (!scheduledFor) {
+    return NextResponse.json(
+      { error: "scheduledFor (ISO date) wajib diisi" },
+      { status: 400 },
+    );
+  }
+
+  const date = new Date(scheduledFor);
+  if (isNaN(date.getTime())) {
+    return NextResponse.json(
+      { error: "scheduledFor harus ISO date yang valid" },
+      { status: 400 },
+    );
+  }
+
+  const invite = await getOrCreateInvite(user.id);
+
+  const updated = await prisma.invite.update({
+    where: { id: invite.id },
+    data: { scheduledFor: date },
+  });
+
+  return NextResponse.json(
+    {
+      message: "Reminder invitation dijadwalkan",
+      code: updated.code,
+      scheduledFor: updated.scheduledFor?.toISOString(),
+    },
+    { status: 200 },
+  );
+}

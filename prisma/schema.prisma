@@ -862,17 +862,20 @@ model ModNote {
 }
 
 model Invite {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  inviterId String
-  uses      Int       @default(0)
-  maxUses   Int       @default(0) // 0 = tak terbatas
-  createdAt DateTime  @default(now())
-  expiresAt DateTime?
+  id              String    @id @default(cuid())
+  code            String    @unique
+  inviterId       String
+  uses            Int       @default(0)
+  maxUses         Int       @default(0) // 0 = tak terbatas
+  scheduledFor    DateTime? // tanggal invitation berlangsung
+  reminderSentAt  DateTime?
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
 
   inviter User @relation("inviter", fields: [inviterId], references: [id], onDelete: Cascade)
 
-  @@index([inviterId])
+  @@index([inviterId, scheduledFor])
+  @@index([scheduledFor, reminderSentAt])
 }
 
 /* ========================================================================== */

@@ -331,3 +331,20 @@ export function getOption(
   const opt = data?.options?.find((o) => o.name === name);
   return opt ? String(opt.value) : undefined;
 }
+
+export function inviteReminderEmbed(i: {
+  code: string;
+  inviterName: string;
+  scheduledDate: string;
+  description?: string;
+}): DiscordEmbed {
+  return {
+    author: { name: "📧 Pengingat Invitation Discord" },
+    title: `Invitation dari ${i.inviterName}`,
+    description: i.description || "Bergabunglah dengan komunitas RnB di Discord!",
+    fields: [
+      { name: "Tanggal", value: i.scheduledDate, inline: true },
+      { name: "Kode", value: `\`${i.code}\``, inline: true },
+    ],
+  };
+}
