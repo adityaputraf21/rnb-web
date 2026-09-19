@@ -5,6 +5,7 @@ import { getOrCreateInvite } from "@/lib/invites";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteShare } from "@/components/invite-share";
+import { InviteReminder } from "@/components/invite-reminder";
 import { initials } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 
@@ -49,6 +50,8 @@ export default async function InvitePage() {
           </span>
         </div>
       </Card>
+
+      <InviteReminder scheduledFor={invite.scheduledFor} />
 
       <div className="space-y-2">
         <h2 className="font-semibold">Teman yang kamu undang</h2>
